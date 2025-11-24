@@ -1,40 +1,50 @@
 import express from 'express';
-import { naviAdminController, naviProprietarioController } from '../controllers/NaviAskController.js'; 
+import { 
+    naviAdminController, 
+    naviProprietarioController,
+    naviDownloadController 
+} from '../controllers/NaviAskController.js'; 
+
 import { 
     listarConversasController, 
     obterHistoricoController, 
     salvarConversaController 
-} from '../controllers/ConversaNaviController.js'; // CORRIGIDO: A importação nomeada deve funcionar
+} from '../controllers/ConversaNaviController.js'; 
 
 import { authMiddleware, authorize } from '../middlewares/AuthMiddlewares.js'; 
 
 const router = express.Router();
 
-// Aplica autenticação a TODAS as rotas da IA (Regra 2.1)
+
 router.use(authMiddleware);
 
 // =======================================================
-// ROTAS DE INTERAÇÃO COM A IA (/api/navi/...)
+// 1. ROTAS DE INTERAÇÃO COM A IA
 // =======================================================
 
-// Rota Admin (Global)
+// Rota Admin (Visão Global)
 router.post('/navi/admin/ask', authorize(['ADMINISTRADOR']), naviAdminController);
 
-// Rota Proprietário
-router.post('/navi/proprietario/ask', authorize(['PROPRIETARIO', 'FUNCIONARIO']), naviProprietarioController);
+// Rota Proprietário (Visão Específica)
+router.post('/navi/proprietario/ask', authorize(['PROPRIETARIO', 'GESTOR', 'FUNCIONARIO']), naviProprietarioController);
+
+// [NOVA ROTA] Download de Documentos (PDF/DOCX)
+// O frontend chama esta rota quando recebe um type: 'document'
+router.post('/navi/download', naviDownloadController);
 
 
 // =======================================================
-// ROTAS DE PERSISTÊNCIA (/api/conversas-navi/...)
+// 2. ROTAS DE PERSISTÊNCIA (HISTÓRICO)
 // =======================================================
 
-// Lista metadados das conversas (Sidebar)
+// Lista todas as conversas do usuário (para a Sidebar)
 router.get('/conversas-navi', listarConversasController);
 
-// Salva ou Atualiza uma conversa
+// Salva ou Atualiza uma conversa no banco
 router.post('/conversas-navi/salvar', salvarConversaController);
 
-// Obtém o histórico de uma conversa específica
-router.get('/conversas-navi/:conversaId/historico', obterHistoricoController);
+// Obtém o histórico de mensagens de uma conversa específica
+// Nota: O parametro no controller geralmente é :id, ajustei para bater com o controller padrão
+router.get('/conversas-navi/:id/historico', obterHistoricoController);
 
 export default router;

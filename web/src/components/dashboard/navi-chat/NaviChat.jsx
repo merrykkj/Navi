@@ -1,26 +1,43 @@
-// src/components/dashboard/navi-chat/NaviChat.js
-
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-// Ícones
+
 import { 
     PaperAirplaneIcon, 
     ChatBubbleLeftRightIcon, 
     FolderOpenIcon, 
     XMarkIcon,
     DocumentTextIcon,
-    ChartBarIcon
+    ChartBarIcon,
+    ArrowDownTrayIcon 
 } from '@heroicons/react/24/outline';
 
-// API e Contexto
 import api from '@/lib/api'; 
 import { useAuth } from '@/contexts/AuthContext'; 
-import ReactMarkdown from 'react-markdown'; // OBRIGATÓRIO
+import ReactMarkdown from 'react-markdown'; 
 
-// =================================================================
-// 1. SUB-COMPONENTES VISUAIS (UI KIT)
-// =================================================================
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  RadialLinearScale,
+  Filler
+} from 'chart.js';
+import { Chart } from 'react-chartjs-2';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+
+ChartJS.register(
+  CategoryScale, LinearScale, BarElement, PointElement, LineElement, 
+  Title, Tooltip, Legend, ArcElement, RadialLinearScale, Filler
+);
 
 const ThinkingDots = () => (
     <div className="flex items-center space-x-1 p-2">
@@ -30,46 +47,165 @@ const ThinkingDots = () => (
     </div>
 );
 
-// Componente para injetar classes no <p> do ReactMarkdown
-const MarkdownRenderer = ({ content, isChart = false }) => {
-    const components = {
-        p: ({ node, ...props }) => (
-            // Aplica a classe de quebra de linha ao parágrafo (solução para o erro 60)
-            <p className="whitespace-pre-wrap" {...props} />
-        ),
-    };
+const MarkdownRenderer = ({ content }) => {
+    const safeContent = typeof content === 'string' ? content : '';
 
-    return <ReactMarkdown components={components}>{content}</ReactMarkdown>;
+    const components = {
+        p: ({ node, ...props }) => <p className="whitespace-pre-wrap text-sm leading-relaxed mb-2" {...props} />,
+        ul: ({ node, ...props }) => <ul className="list-disc ml-4 my-2" {...props} />,
+        li: ({ node, ...props }) => <li className="mb-1" {...props} />,
+        strong: ({ node, ...props }) => <strong className="font-bold text-slate-900 dark:text-white" {...props} />,
+        h1: ({ node, ...props }) => <h1 className="text-lg font-bold mt-3 mb-2" {...props} />,
+        h2: ({ node, ...props }) => <h2 className="text-base font-bold mt-2 mb-1" {...props} />,
+        code: ({ node, inline, ...props }) => 
+            inline 
+            ? <code className="bg-slate-100 dark:bg-slate-700 px-1 rounded text-xs font-mono" {...props} />
+            : <code className="block bg-slate-100 dark:bg-slate-700 p-2 rounded text-xs font-mono overflow-x-auto my-2" {...props} />
+    };
+    return <ReactMarkdown components={components}>{safeContent}</ReactMarkdown>;
 };
 
-
 const ChatMessageItem = ({ msg, isUser, messageRef }) => {
-    // Conteúdo da IA está em parts[0].text
-    const content = msg.parts?.[0]?.text || msg.content || ""; 
-    
+    const chartComponentRef = useRef(null);
+  
+    let content = "";
+    if (msg.parts?.[0]?.text) {
+        content = msg.parts[0].text;
+    } else if (typeof msg.content === 'string') {
+        content = msg.content;
+    } else if (typeof msg.content === 'object' && msg.content !== null) {
+        content = msg.content.insightText || msg.content.content || msg.content.text || "";
+    }
+
+    const downloadChartPDF = () => {
+        const doc = new jsPDF();
+        doc.setFontSize(16);
+        doc.text("Relatório Gráfico Navi AI", 10, 10);
+        doc.setFontSize(12);
+
+        const splitText = doc.splitTextToSize(content, 180);
+        doc.text(splitText, 10, 20);
+ 
+        if (msg.chartData && chartComponentRef.current) {
+            const canvas = chartComponentRef.current.canvas; 
+            const imgData = canvas.toDataURL('image/png');
+            doc.addImage(imgData, 'PNG', 10, 100, 190, 100); 
+        }
+        doc.save(`navi-chart-${Date.now()}.pdf`);
+    };
+
+    const downloadChartCSV = () => {
+        if (!msg.chartData?.data) return;
+        const data = msg.chartData.data;
+        const labels = data.labels || [];
+        const datasets = data.datasets || [];
+
+        let csvContent = "data:text/csv;charset=utf-8,Label," + datasets.map(d => d.label).join(",") + "\n";
+
+        labels.forEach((label, index) => {
+            const row = [label];
+            datasets.forEach(ds => row.push(ds.data[index]));
+            csvContent += row.join(",") + "\n";
+        });
+        
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `navi-data-${Date.now()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const downloadDocument = async () => {
+        try {
+            const dadosParaEnvio = {
+                ...(msg.content?.dataContext || {}),
+                texto: msg.content?.texto,
+                insightText: msg.content?.insightText
+            };
+
+            const response = await api.post('/api/navi/download', {
+                documentType: 'PDF', 
+                documentTitle: msg.content?.documentTitle || "Relatorio",
+                dataContext: dadosParaEnvio, 
+                prefixo: 'Navi_Doc'
+            }, { responseType: 'blob' });
+
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `navi-document-${Date.now()}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (error) {
+            console.error("Erro ao baixar documento:", error);
+            alert("Erro ao gerar o documento no servidor.");
+        }
+    };
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 10 } } },
+        },
+        scales: {
+            x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+            y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+        },
+        ...msg.chartData?.options 
+    };
+    const isDocument = msg.content?.type === 'document' || (typeof msg.content === 'object' && msg.content?.type === 'document');
+
     return (
         <div ref={messageRef} className={`flex w-full mb-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
             <div 
                 className={`
-                    max-w-[85%] px-5 py-3 text-sm leading-relaxed shadow-sm
+                    max-w-[90%] md:max-w-[80%] px-5 py-4 shadow-sm
                     ${isUser 
-                        ? "bg-white text-slate-800 rounded-2xl rounded-br-none border border-slate-100" 
-                        : "bg-white text-slate-700 rounded-2xl rounded-tl-none border border-slate-100"
+                        ? "bg-white text-slate-800 rounded-2xl rounded-br-none border border-slate-100 dark:border-slate-700 dark:text-gray-200 dark:bg-slate-800" 
+                        : "bg-white text-slate-700 rounded-2xl rounded-tl-none border border-slate-100 dark:border-slate-700 dark:text-gray-200 dark:bg-slate-800"
                     }
                 `}
             >
-                {/* Renderização condicional para gráficos ou texto */}
                 {msg.chartData ? (
-                     <div className="p-2">
-                        <p className="font-semibold text-xs text-slate-400 mb-2 uppercase tracking-wider">Gráfico Gerado</p>
-                        {/* Renderiza o texto de insight do gráfico como Markdown */}
-                        <MarkdownRenderer content={content} isChart={true} />
-                        <div className="bg-slate-50 rounded p-4 border text-center text-xs text-slate-400">
-                            [Visualização do Gráfico: {msg.chartData.type}]
+                     <div className="flex flex-col gap-3 w-full">
+                        <div className="flex items-center gap-2 text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+                            <ChartBarIcon className="w-4 h-4" />
+                            Análise Gráfica
+                        </div>
+                        
+                        <MarkdownRenderer content={content} />
+                        <div className="w-full h-64 bg-slate-50 dark:bg-slate-900/50 rounded-lg p-2 border border-slate-100 dark:border-slate-700 relative">
+                            <Chart 
+                                ref={chartComponentRef} 
+                                type={msg.chartData.type || 'bar'} 
+                                data={msg.chartData.data} 
+                                options={chartOptions}
+                            />
+                        </div>
+                        <div className="flex gap-2 mt-2 justify-end">
+                            <button onClick={downloadChartCSV} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-md transition-colors">
+                                <ArrowDownTrayIcon className="w-3 h-3" /> CSV
+                            </button>
+                            <button onClick={downloadChartPDF} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-300 rounded-md transition-colors">
+                                <DocumentTextIcon className="w-3 h-3" /> PDF
+                            </button>
                         </div>
                      </div>
+                ) : isDocument ? (
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2 text-xs font-semibold text-green-600 dark:text-green-400 uppercase tracking-wider">
+                            <DocumentTextIcon className="w-4 h-4" />
+                            Documento Gerado
+                        </div>
+                        <MarkdownRenderer content={content} />
+                        <button onClick={downloadDocument} className="mt-2 w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors shadow-sm">
+                            <ArrowDownTrayIcon className="w-4 h-4" /> Baixar Documento (PDF)
+                        </button>
+                    </div>
                 ) : (
-                    // Renderiza o texto normal como Markdown para formatação
                     <MarkdownRenderer content={content} />
                 )}
             </div>
@@ -77,20 +213,15 @@ const ChatMessageItem = ({ msg, isUser, messageRef }) => {
     );
 };
 
-// =================================================================
-// 2. COMPONENTE PRINCIPAL
-// =================================================================
 export default function NaviChat({ 
     id_estacionamento_selecionado, 
     tagSuggestions = [], 
 }) {
     const { user, isLoading: authLoading } = useAuth(); 
     
-    // Estados de UI
     const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false); 
     const [isFilesDrawerOpen, setIsFilesDrawerOpen] = useState(false);
 
-    // Estados de Dados
     const [conversas, setConversas] = useState([]);
     const [activeConversaId, setActiveConversaId] = useState(null);
     const [historico, setHistorico] = useState([]);
@@ -99,14 +230,13 @@ export default function NaviChat({
     const [error, setError] = useState(null);
     const [generatedFiles, setGeneratedFiles] = useState([]); 
 
-    // Refs
     const messagesEndRef = useRef(null);
     const messageRefs = useRef({}); 
     
     const isSessionReady = !authLoading && !!user;
     const effectiveRole = user?.papel;
 
-    // 1. Buscar Lista de Conversas (GET)
+    // 1. Buscar Lista de Conversas
     const fetchConversas = useCallback(async () => {
         if (!user) return; 
         try {
@@ -114,13 +244,13 @@ export default function NaviChat({
             const data = response.data;
             setConversas(Array.isArray(data) ? data.sort((a, b) => new Date(b.data_atualizacao) - new Date(a.data_atualizacao)) : []);
         } catch (err) {
-            console.warn("NaviChat: Erro ao listar conversas (verifique se a rota existe).", err);
+            console.warn("NaviChat: Erro ao listar conversas.", err);
         }
     }, [user]);
 
     useEffect(() => { if (isSessionReady) fetchConversas(); }, [fetchConversas, isSessionReady]);
 
-    // 2. Carregar Histórico (GET)
+    // 2. Carregar Histórico
     useEffect(() => {
         if (!activeConversaId || !user) { setHistorico([]); return; }
 
@@ -134,10 +264,9 @@ export default function NaviChat({
             .finally(() => setIsLoading(false));
     }, [activeConversaId, user]);
 
-    // Scroll automático
     useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [historico, isLoading]);
 
-    // 3. Salvar Conversa (POST)
+    // 3. Salvar Conversa
     const saveConversation = async (finalHistory, conversaId) => {
         try {
             const payload = {
@@ -156,11 +285,11 @@ export default function NaviChat({
                 fetchConversas();
             }
         } catch (err) {
-            console.error("ERRO CRÍTICO AO SALVAR CONVERSA:", err.response?.status, err.response?.data || err.message);
+            console.error("ERRO CRÍTICO AO SALVAR CONVERSA:", err);
         }
     };
 
-    // 4. Enviar Pergunta (Submit)
+    // 4. Enviar Pergunta
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!userInput.trim() || isLoading || !isSessionReady) return;
@@ -193,13 +322,14 @@ export default function NaviChat({
                 role: 'model',
                 parts: [{ text: iaResponse.type === 'chart' ? iaResponse.insightText : iaResponse.content }],
                 chartData: iaResponse.type === 'chart' ? iaResponse.chartData : null,
+                content: iaResponse 
             };
 
             if (iaResponse.type === 'chart' || iaResponse.type === 'document') {
                 setGeneratedFiles(prev => [...prev, { 
                     id: Date.now(), 
                     type: iaResponse.type, 
-                    title: iaResponse.insightText?.substring(0, 20) + '...' || "Novo Arquivo"
+                    title: iaResponse.insightText?.substring(0, 30) + '...' || "Novo Arquivo"
                 }]);
             }
 
@@ -218,23 +348,11 @@ export default function NaviChat({
         }
     };
 
-    // === HANDLERS DE UI ===
-
-    const toggleChatDrawer = () => {
-        setIsChatDrawerOpen(!isChatDrawerOpen);
-        if (isFilesDrawerOpen) setIsFilesDrawerOpen(false);
-    };
-
-    const toggleFilesDrawer = () => {
-        setIsFilesDrawerOpen(!isFilesDrawerOpen);
-        if (isChatDrawerOpen) setIsChatDrawerOpen(false);
-    };
-
-    const closeAllDrawers = () => {
-        setIsChatDrawerOpen(false);
-        setIsFilesDrawerOpen(false);
-    };
-
+    // === HELPERS UI ===
+    const toggleChatDrawer = () => { setIsChatDrawerOpen(!isChatDrawerOpen); if(isFilesDrawerOpen) setIsFilesDrawerOpen(false); };
+    const toggleFilesDrawer = () => { setIsFilesDrawerOpen(!isFilesDrawerOpen); if(isChatDrawerOpen) setIsChatDrawerOpen(false); };
+    const closeAllDrawers = () => { setIsChatDrawerOpen(false); setIsFilesDrawerOpen(false); };
+    
     const handleNewChat = () => {
         setActiveConversaId(null);
         setHistorico([]);
@@ -244,31 +362,21 @@ export default function NaviChat({
     };
 
     const handleSelectChat = (id) => {
-        if (id !== activeConversaId) {
-            setActiveConversaId(id);
-        }
+        if (id !== activeConversaId) setActiveConversaId(id);
         closeAllDrawers();
     };
 
     const scrollToMessage = (index) => {
         const ref = messageRefs.current[index];
-        if (ref && ref.scrollIntoView) {
-            ref.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
+        if (ref && ref.scrollIntoView) ref.scrollIntoView({ behavior: 'smooth', block: 'center' });
         closeAllDrawers();
     };
-
-    // =================================================================
-    // RENDERIZAÇÃO
-    // =================================================================
     return (
-        <div className="relative w-full h-screen bg-[#F3F4F6] overflow-hidden font-sans text-slate-600">
-            
-            {/* --- 1. HEADER (NAVBAR) --- */}
+        <div className="relative w-full h-screen overflow-hidden font-sans text-slate-600 dark:text-slate-300 bg-[#F3F4F6] dark:bg-slate-900 transition-colors duration-300">
             <header className="absolute top-0 left-0 right-0 h-16 px-6 flex items-center justify-between z-40 bg-transparent pointer-events-none">
                 <button 
                     onClick={toggleChatDrawer}
-                    className="pointer-events-auto p-2 bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-slate-700"
+                    className="pointer-events-auto p-2 bg-white dark:bg-slate-800 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-slate-700 dark:text-slate-200"
                 >
                     {isChatDrawerOpen ? <XMarkIcon className="w-6 h-6" /> : <ChatBubbleLeftRightIcon className="w-6 h-6" />}
                 </button>
@@ -279,31 +387,27 @@ export default function NaviChat({
 
                 <button 
                     onClick={toggleFilesDrawer}
-                    className="pointer-events-auto p-2 bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-slate-700"
+                    className="pointer-events-auto p-2 bg-white dark:bg-slate-800 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-slate-700 dark:text-slate-200"
                 >
                     {isFilesDrawerOpen ? <XMarkIcon className="w-6 h-6" /> : <FolderOpenIcon className="w-6 h-6" />}
                 </button>
             </header>
-
-            {/* --- 2. BACKDROP (BLUR) --- */}
             {(isChatDrawerOpen || isFilesDrawerOpen) && (
                 <div 
                     className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm z-40 transition-opacity duration-300"
                     onClick={closeAllDrawers}
                 />
             )}
-
-            {/* --- 3. LEFT DRAWER (CONVERSAS) --- */}
             <aside 
                 className={`
-                    absolute top-4 bottom-4 left-4 w-80 bg-white rounded-3xl shadow-2xl z-50
+                    absolute top-4 bottom-4 left-4 w-80 bg-white dark:bg-slate-800 rounded-3xl shadow-2xl z-50
                     flex flex-col overflow-hidden transition-transform duration-300 ease-in-out
                     ${isChatDrawerOpen ? 'translate-x-0' : '-translate-x-[120%]'}
                 `}
                 onClick={e => e.stopPropagation()} 
             >
-                <div className="p-6 flex items-center justify-between border-b border-slate-100">
-                    <h2 className="font-bold text-lg text-slate-800">Conversas</h2>
+                <div className="p-6 flex items-center justify-between border-b border-slate-100 dark:border-slate-700">
+                    <h2 className="font-bold text-lg text-slate-800 dark:text-white">Conversas</h2>
                     <button onClick={handleNewChat} className="bg-yellow-400 hover:bg-yellow-500 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors shadow-sm shadow-yellow-200">
                         + Novo Chat
                     </button>
@@ -317,11 +421,11 @@ export default function NaviChat({
                             className={`
                                 w-full text-left p-4 rounded-2xl transition-all duration-200 border
                                 ${activeConversaId === chat.id_conversa 
-                                    ? 'bg-slate-50 border-slate-200 shadow-inner' 
-                                    : 'bg-white border-transparent hover:bg-slate-50 hover:border-slate-100'}
+                                    ? 'bg-slate-50 border-slate-200 shadow-inner dark:bg-slate-700 dark:border-slate-600' 
+                                    : 'bg-white border-transparent hover:bg-slate-50 hover:border-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700'}
                             `}
                         >
-                            <div className="font-medium text-sm text-slate-700 truncate">{chat.titulo || 'Sem título'}</div>
+                            <div className="font-medium text-sm text-slate-700 dark:text-slate-200 truncate">{chat.titulo || 'Sem título'}</div>
                             <div className="text-xs text-slate-400 mt-1">
                                 {chat.data_atualizacao ? new Date(chat.data_atualizacao).toLocaleDateString() : 'Recentemente'}
                             </div>
@@ -329,18 +433,16 @@ export default function NaviChat({
                     ))}
                 </div>
             </aside>
-
-            {/* --- 4. RIGHT DRAWER (ARQUIVOS) --- */}
             <aside 
                 className={`
-                    absolute top-4 bottom-4 right-4 w-80 bg-white rounded-3xl shadow-2xl z-50
+                    absolute top-4 bottom-4 right-4 w-80 bg-white dark:bg-slate-800 rounded-3xl shadow-2xl z-50
                     flex flex-col overflow-hidden transition-transform duration-300 ease-in-out
                     ${isFilesDrawerOpen ? 'translate-x-0' : 'translate-x-[120%]'}
                 `}
                 onClick={e => e.stopPropagation()} 
             >
-                <div className="p-6 border-b border-slate-100">
-                    <h2 className="font-bold text-lg text-slate-800">Arquivos</h2>
+                <div className="p-6 border-b border-slate-100 dark:border-slate-700">
+                    <h2 className="font-bold text-lg text-slate-800 dark:text-white">Arquivos</h2>
                     <p className="text-xs text-slate-400">Gerados na sessão atual</p>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -349,29 +451,27 @@ export default function NaviChat({
                         <button 
                             key={file.id} 
                             onClick={() => scrollToMessage(index)} 
-                            className="flex w-full items-center p-3 bg-slate-50 rounded-xl border border-slate-100 hover:bg-slate-100 transition-colors text-left"
+                            className="flex w-full items-center p-3 bg-slate-50 rounded-xl border border-slate-100 hover:bg-slate-100 transition-colors text-left dark:bg-slate-700 dark:border-slate-600 dark:hover:bg-slate-600"
                         >
-                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center mr-3 ${file.type === 'chart' ? 'bg-blue-100 text-blue-500' : 'bg-orange-100 text-orange-500'}`}>
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center mr-3 ${file.type === 'chart' ? 'bg-blue-100 text-blue-500' : 'bg-green-100 text-green-500'}`}>
                                 {file.type === 'chart' ? <ChartBarIcon className="w-5 h-5" /> : <DocumentTextIcon className="w-5 h-5" />}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-slate-700 truncate">{file.title}</p>
+                                <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{file.title}</p>
                                 <p className="text-xs text-slate-400 uppercase">{file.type}</p>
                             </div>
                         </button>
                     ))}
                 </div>
             </aside>
-
-            {/* --- 5. MAIN CHAT AREA (CENTER) --- */}
             <main className="flex flex-col h-full w-full max-w-4xl mx-auto pt-20 pb-6 px-4">
-                
-                {/* Área de Scroll das Mensagens */}
                 <div className="flex-1 overflow-y-auto scrollbar-hide px-2">
                     {historico.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center opacity-60">
-                            <div className="w-16 h-16 bg-slate-200 rounded-2xl mb-4 animate-pulse"></div>
-                            <h3 className="text-lg font-medium text-slate-400">Como posso ajudar hoje?</h3>
+                            <div className="w-24 h-24 bg-white dark:bg-slate-800 rounded-3xl mb-6 shadow-lg flex items-center justify-center p-4">
+                                <img src="/naviIA.png" alt="Logo da Navi" className="w-full h-full object-contain opacity-80" />
+                            </div>
+                            <h3 className="text-lg font-medium text-slate-500 dark:text-slate-400">Como posso ajudar hoje?</h3>
                         </div>
                     ) : (
                         <div className="py-4">
@@ -385,7 +485,7 @@ export default function NaviChat({
                             ))}
                             {isLoading && (
                                 <div className="flex justify-start mb-4">
-                                     <div className="bg-white rounded-2xl rounded-tl-none shadow-sm px-4 py-2">
+                                     <div className="bg-white rounded-2xl rounded-tl-none shadow-sm px-4 py-2 dark:bg-slate-800">
                                         <ThinkingDots />
                                     </div>
                                 </div>
@@ -395,18 +495,18 @@ export default function NaviChat({
                     )}
                 </div>
 
-                {/* Footer Flutuante (Input e Sugestões) */}
+                {/* Footer */}
                 <div className="flex-shrink-0 mt-4">
                     {error && <div className="text-xs text-red-500 text-center mb-2">{error}</div>}
 
-                    {/* Sugestões (Tags) */}
+                    {/* Sugestões */}
                     {historico.length === 0 && tagSuggestions.length > 0 && (
-                        <div className="flex justify-center gap-2 mb-4 overflow-x-auto pb-2">
+                        <div className="flex justify-center gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
                             {tagSuggestions.map((tag, i) => (
                                 <button 
                                     key={i} 
                                     onClick={() => setUserInput(tag)}
-                                    className="whitespace-nowrap px-4 py-2 bg-white border border-slate-200 rounded-full text-xs font-medium text-slate-600 shadow-sm hover:bg-slate-50 transition-colors"
+                                    className="whitespace-nowrap px-4 py-2 bg-white border border-slate-200 rounded-full text-xs font-medium text-slate-600 shadow-sm hover:bg-slate-50 transition-colors dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700"
                                 >
                                     {tag}
                                 </button>
@@ -414,17 +514,16 @@ export default function NaviChat({
                         </div>
                     )}
 
-                    {/* Input Bar */}
                     <form 
                         onSubmit={handleSubmit} 
-                        className="relative flex items-center bg-white rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.05)] border border-slate-100 p-2 pl-6"
+                        className="relative flex items-center bg-white rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.05)] border border-slate-100 p-2 pl-6 dark:bg-slate-800 dark:border-slate-700"
                     >
                         <input
                             value={userInput}
                             onChange={(e) => setUserInput(e.target.value)}
                             placeholder={!isSessionReady ? "Conectando..." : "O que você gostaria de saber hoje?"}
                             disabled={isLoading || !isSessionReady}
-                            className="flex-1 bg-transparent outline-none text-sm text-slate-700 placeholder:text-slate-400"
+                            className="flex-1 bg-transparent outline-none text-sm text-slate-700 placeholder:text-slate-400 dark:text-slate-200"
                         />
                         <button 
                             type="submit"
@@ -439,9 +538,7 @@ export default function NaviChat({
                         <p className="text-[10px] text-slate-400">O Navi pode cometer erros. Verifique informações importantes.</p>
                     </div>
                 </div>
-
             </main>
-
         </div>
     );
 }
