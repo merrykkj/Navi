@@ -1,324 +1,371 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image, ScrollView } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import * as SQLite from "expo-sqlite";
-import { useLogin } from "../../../providers/loginProvider";
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, Image, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Alert } from 'react-native';
+import { MaterialIcons, Feather, Ionicons } from '@expo/vector-icons'; 
+import { useLogin } from '../../../providers/loginProvider';
+import * as SQLite from 'expo-sqlite';
 
-const openDb = async () => {
-  return await SQLite.openDatabaseAsync("navi.db");
+const windowWidth = Dimensions.get('window').width;
+const FOOTER_CLEARANCE = 120;
+
+const COLORS = {
+  primary: '#FFD700',
+  primaryDark: '#EAB308',
+  textDark: '#333333',
+  textMedium: '#666666',
+  textLight: '#999999',
+  background: '#FFFBEA',
+  cardBackground: '#FFFFFF',
+  border: '#E0E0E0',
+  separator: '#EBEBEB',
+  inputBackground: '#FFFFFF',
 };
 
-export default function ProfileScreen() {
-  const { user, setUser } = useLogin();
-  const [form, setForm] = useState({
-    nome: "",
-    email: "",
-    telefone: "",
-    papel: "",
-    url_foto_perfil: "",
-  });
+const openDb = () => SQLite.openDatabase("navi.db");
 
-  const [focusedInput, setFocusedInput] = useState(null);
+const InfoRow = ({ label, value, field, updateFn, iconName, editando, keyboardType = 'default' }) => (
+  <View style={styles.infoRow}>
+    <Ionicons name={iconName} size={20} color={COLORS.primaryDark} style={styles.icon} />
+    <View style={styles.infoContent}>
+      <Text style={styles.label}>{label}</Text>
+      {editando ? (
+        <TextInput
+          style={styles.input}
+          value={value}
+          onChangeText={(t) => updateFn(field, t)}
+          keyboardType={keyboardType}
+          placeholder={`Insira o ${label.toLowerCase()}`}
+          autoCapitalize={keyboardType === 'email-address' ? 'none' : 'sentences'}
+          placeholderTextColor={COLORS.textLight} 
+        />
+      ) : (
+        <Text style={styles.value}>{value || 'Não informado'}</Text>
+      )}
+    </View>
+  </View>
+);
+
+export default function PerfilClienteEstacionamento() {
+  const { user, setUser } = useLogin();
+  const [cliente, setCliente] = useState(null);
+  const [editando, setEditando] = useState(false);
 
   useEffect(() => {
     if (user) {
-      setForm({
-        nome: user.nome || "",
-        email: user.email || "",
-        telefone: user.telefone || "",
-        papel: user.papel || "",
-        url_foto_perfil: user.url_foto_perfil || "",
+      setCliente({
+        nome: user.nome || '',
+        email: user.email || '',
+        telefone: user.telefone || '',
+        anoEntrada: user.anoEntrada || '',
+        plano: user.plano || '',
+        foto: user.url_foto_perfil || 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?q=80&w=800&auto=format&fit=crop&crop=faces',
+        veiculo: {
+          modelo: user.veiculo?.modelo || '',
+          placa: user.veiculo?.placa || '',
+          cor: user.veiculo?.cor || '',
+        },
       });
     }
   }, [user]);
 
-  async function handleSave() {
-    if (!user || !user.id_usuario) {
-      Alert.alert("Erro", "Usuário não identificado para salvar as alterações.");
-      return;
-    }
+  const atualizarCampo = (campo, valor) => setCliente({ ...cliente, [campo]: valor });
+  const atualizarVeiculo = (campo, valor) => setCliente({ ...cliente, veiculo: { ...cliente.veiculo, [campo]: valor } });
+
+  const handleSalvar = async () => {
+    if (!user) return;
 
     try {
-      const db = await openDb();
-      await db.runAsync(
-        `UPDATE usuario
-         SET nome = ?, email = ?, telefone = ?, papel = ?, url_foto_perfil = ?
-         WHERE id_usuario = ?`,
-        [
-          form.nome.trim(),
-          form.email.trim(),
-          form.telefone.trim(),
-          form.papel.trim(),
-          form.url_foto_perfil.trim(),
-          user.id_usuario,
-        ]
-      );
-
-      const updatedUser = await db.getFirstAsync(
-        "SELECT * FROM usuario WHERE id_usuario = ?",
-        [user.id_usuario]
-      );
-      setUser(updatedUser);
-      Alert.alert("Sucesso", "Perfil atualizado com sucesso!");
+      const db = openDb();
+      db.transaction(tx => {
+        tx.executeSql(
+          `UPDATE usuario SET nome = ?, email = ?, telefone = ?, url_foto_perfil = ? WHERE id_usuario = ?`,
+          [cliente.nome, cliente.email, cliente.telefone, cliente.foto, user.id_usuario],
+          (_, result) => {
+            setUser({ ...user, nome: cliente.nome, email: cliente.email, telefone: cliente.telefone, url_foto_perfil: cliente.foto });
+            Alert.alert('Sucesso', 'Perfil atualizado!');
+            setEditando(false);
+          },
+          (_, error) => { console.log(error); Alert.alert('Erro', 'Não foi possível salvar.'); return false; }
+        );
+      });
     } catch (err) {
-      console.error("Erro ao salvar:", err);
-      Alert.alert("Erro", "Não foi possível salvar as alterações.");
+      console.log(err);
+      Alert.alert('Erro', 'Não foi possível salvar.');
     }
-  }
+  };
 
-  function handleLogout() {
+  const handleLogout = () => {
     Alert.alert("Sair", "Deseja realmente sair?", [
       { text: "Cancelar", style: "cancel" },
-      { text: "Sair", style: "destructive", onPress: () => setUser(null) },
+      { text: "Sair", style: "destructive", onPress: () => setUser(null) }
     ]);
-  }
+  };
 
-  if (!user) {
+  if (!cliente) {
     return (
-      <SafeAreaView style={styles.centered}>
-        <Text style={{ color: "#000" }}>Nenhum usuário logado.</Text>
-      </SafeAreaView>
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text>Nenhum usuário logado.</Text>
+      </View>
     );
   }
 
-  const StyledInput = ({ label, value, onChangeText, keyboardType, autoCapitalize, placeholder, name }) => (
-    <View style={styles.inputGroup}>
-      <Text style={styles.inputLabel}>{label}</Text>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        style={[styles.input, focusedInput === name && styles.inputFocused]}
-        keyboardType={keyboardType}
-        autoCapitalize={autoCapitalize}
-        placeholder={placeholder}
-        placeholderTextColor="#A9A9A9"
-        onFocus={() => setFocusedInput(name)}
-        onBlur={() => setFocusedInput(null)}
-      />
-    </View>
-  );
-
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        
-        <View style={styles.headerCard}>
-          <Image
-            source={
-              form.url_foto_perfil
-                ? { uri: form.url_foto_perfil }
-                : require("../../../../public/icon.png")
-            }
-            style={styles.avatar}
-          />
+    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.card}>
 
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>{form.nome || "Usuário"}</Text>
-            <Text style={styles.userRole}>{form.papel || "Sem Função"}</Text>
+        <View style={styles.header}>
+          <View style={styles.avatarContainer}>
+            <Image source={{ uri: cliente.foto }} style={styles.avatar} />
+            <TouchableOpacity style={styles.photoEditButton}>
+              <Feather name="camera" size={18} color={'white'} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.headerInfo}>
+            {editando ? (
+              <TextInput
+                style={styles.inputNameEdit}
+                value={cliente.nome}
+                onChangeText={(t) => atualizarCampo('nome', t)}
+                placeholderTextColor={COLORS.textLight}
+              />
+            ) : (
+              <Text style={styles.name}>{cliente.nome}</Text>
+            )}
+            <View style={styles.roleRow}>
+              <MaterialIcons name="access-time" size={14} color={COLORS.textMedium} />
+              <Text style={styles.role}>Cliente desde {cliente.anoEntrada || 'Não informado'}</Text>
+            </View>
           </View>
         </View>
-        
-        <View style={styles.editCard}>
-          <Text style={styles.sectionTitle}>Detalhes do Perfil</Text>
-          
-          <StyledInput
-            name="nome"
-            label="Nome Completo"
-            value={form.nome}
-            onChangeText={(t) => setForm({ ...form, nome: t })}
-          />
 
-          <StyledInput
-            name="email"
-            label="Email"
-            value={form.email}
-            onChangeText={(t) => setForm({ ...form, email: t })}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
+        <View style={styles.separator} />
 
-          <StyledInput
-            name="telefone"
+        <Text style={styles.sectionTitle}>Dados de Contato e Plano</Text>
+        <View style={styles.box}>
+          <InfoRow
             label="Telefone"
-            value={form.telefone}
-            onChangeText={(t) => setForm({ ...form, telefone: t })}
+            value={cliente.telefone}
+            field="telefone"
+            updateFn={atualizarCampo}
+            iconName="call-outline"
             keyboardType="phone-pad"
+            editando={editando}
           />
-
-          <StyledInput
-            name="papel"
-            label="Papel / Função"
-            value={form.papel}
-            onChangeText={(t) => setForm({ ...form, papel: t })}
-            placeholder="ADMINISTRADOR | PROPRIETARIO | MOTORISTA"
-            autoCapitalize="characters"
+          <InfoRow
+            label="Email"
+            value={cliente.email}
+            field="email"
+            updateFn={atualizarCampo}
+            iconName="mail-outline"
+            keyboardType="email-address"
+            editando={editando}
           />
-
-          <StyledInput
-            name="url_foto_perfil"
-            label="URL da Foto de Perfil"
-            value={form.url_foto_perfil}
-            onChangeText={(t) => setForm({ ...form, url_foto_perfil: t })}
-            placeholder="Ex: https://example.com/foto.jpg"
-            autoCapitalize="none"
+          <InfoRow
+            label="Plano"
+            value={cliente.plano}
+            field="plano"
+            updateFn={atualizarCampo}
+            iconName="receipt-outline"
+            editando={editando}
           />
+        </View>
 
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-            <Text style={styles.saveText}>Salvar Alterações</Text>
+        <View style={styles.separator} />
+
+        <Text style={styles.sectionTitle}>Detalhes do Veículo</Text>
+        <View style={styles.box}>
+          <InfoRow
+            label="Modelo"
+            value={cliente.veiculo.modelo}
+            field="modelo"
+            updateFn={atualizarVeiculo}
+            iconName="car-outline"
+            editando={editando}
+          />
+          <InfoRow
+            label="Placa"
+            value={cliente.veiculo.placa}
+            field="placa"
+            updateFn={atualizarVeiculo}
+            iconName="pricetag-outline"
+            editando={editando}
+          />
+          <InfoRow
+            label="Cor"
+            value={cliente.veiculo.cor}
+            field="cor"
+            updateFn={atualizarVeiculo}
+            iconName="color-filter-outline"
+            editando={editando}
+          />
+        </View>
+
+        <View style={styles.actionButtonsContainer}>
+          <TouchableOpacity
+            style={styles.buttonPrimary}
+            onPress={() => (editando ? handleSalvar() : setEditando(true))}
+          >
+            <Text style={styles.buttonPrimaryText}>
+              {editando ? 'Salvar Alterações' : 'Editar Perfil'}
+            </Text>
+            <Ionicons
+              name={editando ? 'save-outline' : 'create-outline'}
+              size={18}
+              color={'white'}
+              style={{ marginLeft: 8 }}
+            />
+          </TouchableOpacity>
+
+          {editando && (
+            <TouchableOpacity
+              style={styles.buttonCancel} 
+              onPress={() => setEditando(false)}
+            >
+              <Text style={styles.buttonCancelText}>Cancelar Edição</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={[styles.buttonCancel, { marginTop: 20 }]}
+            onPress={handleLogout}
+          >
+            <Text style={styles.buttonCancelText}>Sair da Conta</Text>
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutText}>Sair da Conta</Text>
-        </TouchableOpacity>
-        
-      </ScrollView>
-    </SafeAreaView>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  container: { 
+    paddingTop: 24, 
+    paddingBottom: FOOTER_CLEARANCE, 
+    alignItems: 'center', 
+    backgroundColor: COLORS.background, 
   },
 
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#F8F8F8",
-  },
-
-  headerCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFF",
-    padding: 20,
-    borderRadius: 15,
-    marginBottom: 25,
-    shadowColor: "#000",
+  card: {
+    width: Math.min(windowWidth - 32, 700),
+    padding: 24,
+    borderRadius: 20,
+    backgroundColor: COLORS.cardBackground,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
-    shadowRadius: 10,
+    shadowRadius: 15,
     elevation: 5,
   },
 
-  avatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    marginRight: 18,
-    borderColor: "#FFC107", 
-    borderWidth: 4, 
-    backgroundColor: "#EEE",
+  separator: {
+    height: 1, 
+    backgroundColor: COLORS.separator,
+    marginVertical: 25, 
+    width: '100%',
   },
 
-  userInfo: {
-    flex: 1,
+  header: { alignItems: 'center', marginBottom: 30, paddingTop: 10 },
+  
+  avatarContainer: { position: 'relative', marginBottom: 15 },
+  avatar: { 
+    width: 100, 
+    height: 100, 
+    borderRadius: 50, 
+    borderWidth: 3, 
+    borderColor: COLORS.border, 
   },
-
-  userName: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: "#222",
-    lineHeight: 30,
-  },
-
-  userRole: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#777",
-    marginTop: 3,
-  },
-
-  editCard: {
-    backgroundColor: "#FFF",
-    padding: 25,
+  photoEditButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#EAB308', 
     borderRadius: 15,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#333",
-    marginBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
-    paddingBottom: 8,
-  },
-
-  inputGroup: {
-    marginBottom: 15,
-  },
-
-  inputLabel: {
-    fontSize: 14,
-    color: "#555",
-    marginBottom: 6,
-    fontWeight: "600",
-  },
-
-  input: {
-    backgroundColor: "#F9F9F9",
-    borderRadius: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 15,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
-    color: "#333",
-    transitionProperty: 'border-color', 
-    transitionDuration: 200,
+    padding: 6,
+    borderWidth: 2,
+    borderColor: COLORS.cardBackground, 
   },
   
-  inputFocused: {
-    borderColor: "#FFC107",
-    backgroundColor: "#FFF",
+  headerInfo: { alignItems: 'center' },
+  name: { fontSize: 24, fontWeight: '800', color: COLORS.textDark },
+  roleRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
+  role: { fontSize: 14, color: COLORS.textMedium, marginLeft: 6 },
+  
+  inputNameEdit: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: COLORS.textDark,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    paddingBottom: 2,
+    textAlign: 'center',
+    marginBottom: 4,
   },
 
-  saveButton: {
-    marginTop: 30,
-    backgroundColor: "#FFC107",
-    paddingVertical: 18,
-    borderRadius: 12,
-    shadowColor: "#FFC107",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 8,
-  },
+  sectionTitle: { marginTop: 24, marginBottom: 10, fontSize: 18, fontWeight: '700', color: COLORS.textDark },
 
-  saveText: {
-    textAlign: "center",
-    fontWeight: "800",
-    fontSize: 18,
-    color: "#222",
-  },
-
-  logoutButton: {
-    marginTop: 15,
-    paddingVertical: 16,
-    borderRadius: 10,
-    backgroundColor: "transparent",
+  box: {
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: 14,
+    padding: 4,
     borderWidth: 1,
-    borderColor: "#C8C8C8",
+    borderColor: COLORS.border,
+  },
+  
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.separator,
+  },
+  icon: { marginRight: 12 },
+  infoContent: { flex: 1 },
+
+  label: { fontSize: 12, color: COLORS.textMedium },
+  value: { fontSize: 16, fontWeight: '600', color: COLORS.textDark, marginTop: 2 },
+
+  input: {
+    backgroundColor: COLORS.inputBackground, 
+    borderWidth: 1,
+    borderColor: COLORS.border, 
+    borderRadius: 8,
+    padding: 8,
+    marginTop: 4,
+    fontSize: 16,
+    color: COLORS.textDark,
   },
 
-  logoutText: {
-    textAlign: "center",
-    fontWeight: "600",
-    fontSize: 16,
-    color: "#777",
+  actionButtonsContainer: { 
+    alignItems: 'center',
+    marginTop: 30,
+  },
+  
+  buttonPrimary: {
+    backgroundColor: COLORS.primaryDark, 
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 12,
+    shadowColor: COLORS.primaryDark, 
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  buttonPrimaryText: { color: 'white', fontWeight: '700', fontSize: 16 },
+  
+  buttonCancel: {
+    marginTop: 15,
+    padding: 5,
+  },
+  buttonCancelText: { 
+    color: COLORS.textMedium, 
+    fontWeight: '600', 
+    fontSize: 14,
+    textDecorationLine: 'underline',
   },
 });

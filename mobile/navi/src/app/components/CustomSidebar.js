@@ -9,9 +9,9 @@ const DARK_TEXT = '#1f2937';
 const LIGHT_BACKGROUND = '#fefefe';
 
 const MENU_ITEMS = [
-  { title: 'Conta', icon: 'person-outline', screen: 'Conta' },
-  { title: 'Histórico', icon: 'time-outline', screen: 'Historico' },
-  { title: 'Ajustes', icon: 'settings-outline', screen: 'Ajustes' },
+  { title: 'Conta', icon: 'person-outline', screen: 'profile' },
+  { title: 'Histórico', icon: 'time-outline', screen: 'historico' },
+  { title: 'Ajustes', icon: 'settings-outline', screen: 'settings' },
   { title: 'Ajuda', icon: 'help-circle-outline', screen: 'Ajuda' },
 ];
 

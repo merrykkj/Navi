@@ -29,9 +29,9 @@ export default function Main({ navigation }) {
 
   const handleNavigate = (screenName) => {
     setIsSidebarOpen(false);
-    navigation.navigate(screenName);
+    setActiveTab(screenName);
   };
-
+  
   const renderContent = () => {
     switch (activeTab) {
       case "home":
