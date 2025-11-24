@@ -9,34 +9,35 @@ import { View, TextInput, Text, TouchableOpacity, StyleSheet, Alert } from 'reac
 export const LoginForm = ({ navigation }) => {
   const { setUser } = useLogin();
 
-  const [form, setForm] = useState({
-    email: '',
-    senha: ''
-  });
+  const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     try {
-      if (!form.email || !form.senha) {
+      if (!email || !senha) {
         throw new Error('Preencha todos os campos!');
       }
 
-      const fakeUser = {
-        id_usuario: 1,
-        nome: "Usuário Genérico",
-        email: form.email,
-        papel: "ADMINISTRADOR"
-      };
-
-      setUser(fakeUser);
-
-      Alert.alert('Login fictício', `Bem-vindo, ${fakeUser.nome}!`);
-
-      setForm({
-        email: '',
-        senha: ''
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email,
+          senha: senha
+        }),
       });
 
-      console.log("Login sem SQLite:", fakeUser);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Falha na autenticação');
+      }
+
+      Alert.alert('Login fictício', `Bem-vindo, ${fakeUser.nome}!`);
+      console.log('Login bem-sucedido:', data.user);
 
     } catch (error) {
       console.error(error);
@@ -55,7 +56,7 @@ export const LoginForm = ({ navigation }) => {
         style={styles.input}
         placeholder="Endereço de Email"
         value={form.email}
-        onChangeText={(text) => setForm({ ...form, email: text })}
+        onChangeText={(text) => setEmail(e.target.value)}
         keyboardType="email-address"
         autoCapitalize="none"
       />
