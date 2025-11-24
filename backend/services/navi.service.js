@@ -2,18 +2,14 @@ import 'dotenv/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import prisma from '../config/prisma.js'; 
 
-// =================================================================
-// 1. CONFIGURAÇÃO DO CLIENTE GEMINI
-// =================================================================
 if (!process.env.GOOGLE_API_KEY) {
   throw new Error('A variável de ambiente GOOGLE_API_KEY não foi encontrada.');
 }
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' }); 
 
-// =================================================================
-// 2. PERSONA DA INTELIGÊNCIA ARTIFICIAL
-// =================================================================
+//  Persona da Navi IA
+
 const NAVI_PERSONA = `
 ## Persona: Navi, O Especialista em Gestão
 
@@ -60,10 +56,10 @@ const NAVI_PERSONA = `
 `;
 
 
-// === 3. LÓGICA DE BUSCA DE DADOS (BuscaDados) - Buscas Prisma ===
+//Fazendo a lógica de busca de dados utilizando o prisma
 
 const BuscaDados = {
-    // 3.1. Busca para Administrador (Global)
+    // Busca  especifica para Administrador (Global)
     buscaGlobal: async () => {
         // Nomes de modelos diretos (usuario, estacionamento, avaliacao)
         const totalEstacionamentos = await prisma.estacionamento.count({ where: { ativo: true } });
@@ -86,7 +82,7 @@ const BuscaDados = {
         };
     },
 
-    // 3.2. Busca para Proprietário (Específico)
+    //Busca especifica para Proprietário (Específico)
     buscaEstacionamento: async (id_estacionamento) => {
         const id = id_estacionamento;
 
@@ -95,24 +91,18 @@ const BuscaDados = {
             where: { id_estacionamento: id },
             _count: { id_vaga: true },
         });
-
-        // CORREÇÃO: Usando a relação aninhada através do model plano_mensal
-        // para encontrar os contratos que pertencem ao estacionamento.
         const totalMensalistas = await prisma.contrato_mensalista.count({ 
             where: { 
                 status: 'ATIVO', 
-                // Filtra pelo ID do estacionamento através da relação com o plano
                 plano: { 
                     id_estacionamento: id 
                 } 
             } 
         });
         
-        // Faturamento (Exemplo)
         const faturamentoAgregado = await prisma.pagamento.aggregate({
             where: { 
                 status: 'APROVADO',
-                // Filtra pelo ID do estacionamento através da relação Reserva -> Vaga
                 reserva: { vaga: { id_estacionamento: id } }
             },
             _sum: { valor_liquido: true }
@@ -127,17 +117,11 @@ const BuscaDados = {
             faturamento: { totalAprovadoGeral: faturamentoAgregado._sum.valor_liquido || 0 },
         };
     },
-};
-
-
-// =================================================================
-// 4. OBJETO DE SERVIÇO EXPORTADO (NaviService)
-// =================================================================
+}
 
 export const NaviService = {
-    /**
-     * Envia o prompt para o Gemini e trata a resposta.
-     */
+    // Lógica do envio de prompts (ideia de atualização integrar duas API Keys 
+    // e fazer um rotativo entre elas pra demorar menos tempo entre as respostas e consumir menos tokens)
     ask: async (user_question, data_context, history) => {
 
         const formattedHistory = (history || [])
@@ -174,6 +158,5 @@ export const NaviService = {
         }
     },
     
-    // Exporta as funções de busca para uso no Controller
     buscaDados: BuscaDados,
 };

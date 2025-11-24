@@ -1,10 +1,8 @@
-// src/services/document.service.js
-
 import PDFDocument from 'pdfkit';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
-import { Writable } from 'stream'; // Para manipulação de streams
+import { Writable } from 'stream'; 
 
-// Função auxiliar para converter um stream em Buffer
+
 const streamToBuffer = (stream) => new Promise((resolve, reject) => {
     const chunks = [];
     stream.on('data', (chunk) => chunks.push(chunk));

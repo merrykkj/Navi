@@ -2,6 +2,8 @@ import { NaviService } from '../services/navi.service.js';
 import { askNaviAdminSchema, askNaviProprietarioSchema } from '../schemas/navi.schema.js';
 import { DocumentGenerateNavi } from '../models/DocumentGenerateNavi.js'; 
 import prisma from '../config/prisma.js'; 
+import { DocumentGenerateNavi } from '../models/DocumentGenerateNavi.js'; 
+import prisma from '../config/prisma.js'; 
 
 // Checagem de Autorização
 const verificarAutorizacao = async (estacionamentoId, userId) => {
