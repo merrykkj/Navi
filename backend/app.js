@@ -96,10 +96,9 @@ app.use('/contratos', contratoRoutes);
 app.use('/cupons', cupomRoutes);
 app.use('/relatorios', relatoriosRoutes);
 app.use('/chat', chatRoutes);
-app.use('/api/navi', naviRoutes);
 app.use('/estabelecimentos/kpi', estabelecimentoKpiRoutes);
 app.use('/usuarios/kpi', usuarioKpiRoutes);
-
+app.use('/api', naviRoutes); 
 app.get('/', (req, res) => {
     res.send('API Navi + WebSocket rodando!');
 });

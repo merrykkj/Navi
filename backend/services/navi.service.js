@@ -1,155 +1,162 @@
 import 'dotenv/config';
-
 import { GoogleGenerativeAI } from '@google/generative-ai';
-
-
-
-// =================================================================
-
-// 1. CONFIGURAÇÃO DO CLIENTE GEMINI
-
-// =================================================================
+import prisma from '../config/prisma.js'; 
 
 if (!process.env.GOOGLE_API_KEY) {
-
   throw new Error('A variável de ambiente GOOGLE_API_KEY não foi encontrada.');
-
 }
-
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' }); 
 
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }); // Corrigido para 1.5-flash
-
-
-
-// =================================================================
-
-// 2. PERSONA DA INTELIGÊNCIA ARTIFICIAL
-
-// =================================================================
-
-// A sua persona, exatamente como você a definiu.
+//  Persona da Navi IA
 
 const NAVI_PERSONA = `
-
 ## Persona: Navi, O Especialista em Gestão
 
-
-
 **1. Identidade:** Você é o Navi, um assistente virtual especialista em análise de dados para gestão de estacionamentos.
-
 **2. Objetivo Principal:** Sua missão é transformar dados operacionais em insights claros e acionáveis para ajudar o gestor a tomar decisões inteligentes.
-
 **3. Regras de Comportamento:**
+  - **Baseado em Dados:** Sempre baseie suas análises estritamente nos dados fornecidos.
+  - **Clareza e Simplicidade:** Comunique-se de forma clara e direta.
+  - **Proativo e Prescritivo:** Sugira ações concretas.
+  - **Tom Profissional:** Mantenha um tom consultivo e confiável.
 
-   - **Baseado em Dados:** Sempre baseie suas análises estritamente nos dados fornecidos.
+**4. Formato da Resposta (REGRA CRÍTICA):** A sua resposta DEVE ser SEMPRE um objeto JSON válido.
+  - **NÃO** use crases de markdown (\`\`\`json) no início ou fim. Apenas o objeto bruto.
+  - **NÃO** escape aspas duplas dentro de objetos JSON aninhados, mantenha a estrutura de objeto.
 
-   - **Clareza e Simplicidade:** Comunique-se de forma clara e direta.
+  **Tipos de Resposta:**
 
-   - **Proativo e Prescritivo:** Sugira ações concretas.
+  A) **Texto Simples:**
+  \`{ "type": "text", "content": "Sua resposta em Markdown..." }\`
 
-   - **Justifique Suas Respostas:** Sempre explique o "porquê" com base nos dados.
+  B) **Gráfico:**
+  \`{ "type": "chart", "insightText": "Resumo...", "chartData": { ...dados Chart.js... } }\`
 
-   - **Tom Profissional:** Mantenha um tom consultivo e confiável.
+  C) **Documento (Relatório):**
+  Esta é a estrutura OBRIGATÓRIA para documentos. O campo "texto" DEVE SER UM OBJETO REAL, não uma string.
+  \`\`\`json
+  { 
+    "type": "document", 
+    "insightText": "Resumo curto para o chat...", 
+    "documentType": "PDF", 
+    "documentTitle": "Título do Relatório",
+    "texto": {
+        "sumario": ["1. Introdução", "2. Análise"],
+        "1. Introdução": { "texto": "Texto corrido da introdução..." },
+        "2. Análise Detalhada": { "texto": "Texto da análise..." },
+        "3. Conclusão": { "texto": "Texto da conclusão..." }
+    }
+  }
+  \`\`\`
+  *Nota para Documentos: As chaves dentro de 'texto' serão usadas como Títulos das Seções no PDF.*
 
-**4. Formato da Resposta (REGRA CRÍTICA):** A sua resposta DEVE ser sempre uma string contendo um objeto JSON perfeitamente válido e pronto para ser 'parseado' (JSON.parse), sem exceções.
-
-   - **IMPORTANTE:** Certifique-se de que todos os caracteres especiais dentro dos valores do JSON, como aspas duplas (") e quebras de linha (especialmente em resumos Markdown), estão devidamente escapados com barras invertidas (ex: \\", \\n).
-
-   - Se a pergunta for um pedido de análise ou insight em texto, o JSON deve ter a estrutura: \`{ "type": "text", "content": "Seu insight em Markdown aqui... Lembre-se de escapar \\n e \\"..." }\`
-
-   - Se a pergunta pedir um gráfico, o JSON DEVE ter a estrutura: \`{ "type": "chart", "insightText": "Um breve resumo do gráfico...", "chartData": { ...objeto de dados para Chart.js... } }\`
-
-   - Para o campo chartData, gere apenas a estrutura de dados e as opções de configuração visual. **NUNCA gere a propriedade 'callbacks' dentro das opções.**
-
-   - Se a pergunta pedir imagens, diga que você não é um modelo capaz de gerar imagens, mas pode gerar gráficos.
-
-**5. Tratamento de Contexto Vazio:** Se o "Contexto de Dados para Análise" for um objeto vazio ({}), a pergunta é geral. Responda com base na sua identidade e objetivo.
-
-**6. Memória da Conversa:** A seguir, você receberá o histórico da conversa atual. Use este histórico para entender o contexto de perguntas de acompanhamento.
-
-**7. Linguagem Natural:** Ao apresentar os dados, traduza os nomes técnicos das chaves do JSON para uma linguagem natural e amigável.
-
-**8. Formatação de Texto:** Use Markdown para formatar suas respostas de texto para melhor legibilidade. Use títulos (com ##), negrito (com **) e listas (com -).
-
+**5. Tratamento de Contexto Vazio:** Se o "Contexto de Dados" for vazio, responda educadamente que não há dados suficientes.
+**6. Memória:** Use o histórico para contexto.
 `;
 
 
+//Fazendo a lógica de busca de dados utilizando o prisma
 
-// =================================================================
+const BuscaDados = {
+    // Busca  especifica para Administrador (Global)
+    buscaGlobal: async () => {
+        // Nomes de modelos diretos (usuario, estacionamento, avaliacao)
+        const totalEstacionamentos = await prisma.estacionamento.count({ where: { ativo: true } });
+        const totalUsuarios = await prisma.usuario.count({ where: { ativo: true } });
+        const contagemPorPapel = await prisma.usuario.groupBy({
+            by: ['papel'],
+            where: { ativo: true },
+            _count: { id_usuario: true },
+        });
+        const mediaAvaliacao = await prisma.avaliacao.aggregate({ _avg: { nota: true } });
+        
+        return {
+            meta: { tipo: "GlobalAdministrador" },
+            estacionamentos: { total: totalEstacionamentos },
+            usuarios: {
+                total: totalUsuarios,
+                contagemPorPapel: contagemPorPapel.map(item => ({ papel: item.papel, count: item._count.id_usuario })),
+            },
+            metricasGerais: { mediaAvaliacaoGlobal: mediaAvaliacao._avg.nota },
+        };
+    },
 
-// 3. FUNÇÃO DE SERVIÇO EXPORTADA
+    //Busca especifica para Proprietário (Específico)
+    buscaEstacionamento: async (id_estacionamento) => {
+        const id = id_estacionamento;
 
-// =================================================================
+        const vagasStatus = await prisma.vaga.groupBy({
+            by: ['status', 'tipo_vaga'],
+            where: { id_estacionamento: id },
+            _count: { id_vaga: true },
+        });
+        const totalMensalistas = await prisma.contrato_mensalista.count({ 
+            where: { 
+                status: 'ATIVO', 
+                plano: { 
+                    id_estacionamento: id 
+                } 
+            } 
+        });
+        
+        const faturamentoAgregado = await prisma.pagamento.aggregate({
+            where: { 
+                status: 'APROVADO',
+                reserva: { vaga: { id_estacionamento: id } }
+            },
+            _sum: { valor_liquido: true }
+        });
 
-// [CORREÇÃO-CHAVE]: A lógica da IA agora está dentro de uma função exportada.
+        return {
+            meta: { tipo: "ProprietarioEstacionamento", id_estacionamento: id },
+            vagas: {
+                detalhes: vagasStatus.map(v => ({ status: v.status, tipo: v.tipo_vaga, count: v._count.id_vaga })),
+            },
+            mensalistas: { totalAtivos: totalMensalistas },
+            faturamento: { totalAprovadoGeral: faturamentoAgregado._sum.valor_liquido || 0 },
+        };
+    },
+}
 
-export const getGeminiResponse = async (user_question, data_context, history) => {
+export const NaviService = {
+    // Lógica do envio de prompts (ideia de atualização integrar duas API Keys 
+    // e fazer um rotativo entre elas pra demorar menos tempo entre as respostas e consumir menos tokens)
+    ask: async (user_question, data_context, history) => {
 
-  const formattedHistory = (history || [])
+        const formattedHistory = (history || [])
+            .map(msg => `${msg.role}: ${msg.parts.map(p => p.text).join('')}`)
+            .join('\n');
 
-    .map(msg => `${msg.role}: ${msg.parts.map(p => p.text).join('')}`)
+        const prompt = `
+            ${NAVI_PERSONA}
 
-    .join('\n');
+            ## Histórico da Conversa Anterior
+            ${formattedHistory}
 
+            ## Contexto de Dados para Análise (Extraído do Banco de Dados)
+            ${JSON.stringify(data_context, null, 2)}
 
+            ## Nova Pergunta do Gestor
+            ${user_question}
+        `;
 
-  const prompt = `
+        console.log('Enviando prompt para o Gemini...');
+        try {
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            const rawTextResponse = response.text();
+            console.log('Resposta bruta recebida do Gemini:', rawTextResponse);
 
-    ${NAVI_PERSONA}
+            const cleanedResponse = rawTextResponse.replace(/^```json\s*/, '').replace(/```$/, '').trim();
+            return JSON.parse(cleanedResponse);
 
-
-
-    ## Histórico da Conversa Anterior
-
-    ${formattedHistory}
-
-
-
-    ## Contexto de Dados para Análise (Extraído do Banco de Dados)
-
-    ${JSON.stringify(data_context, null, 2)}
-
-
-
-    ## Nova Pergunta do Gestor
-
-    ${user_question}
-
-  `;
-
-
-
-  console.log('Enviando prompt para o Gemini...');
-
-  try {
-
-    const result = await model.generateContent(prompt);
-
-    const response = await result.response;
-
-    const rawTextResponse = response.text();
-
-    console.log('Resposta bruta recebida do Gemini:', rawTextResponse);
-
-
-
-    // Limpa a resposta da IA para garantir que o parse funcione
-
-    const cleanedResponse = rawTextResponse.replace(/^```json\s*/, '').replace(/```$/, '').trim();
-
-    return JSON.parse(cleanedResponse);
-
-
-
-  } catch (e) {
-
-    console.error('Falha ao parsear JSON da IA. Tratando como texto.', e);
-
-    // Se falhar, encapsula a resposta bruta num formato de texto padrão
-
-    return { type: 'text', content: "Ocorreu um erro ao processar a resposta da IA. Por favor, tente novamente." };
-
-  }
-
-}; 
+        } catch (e) {
+            console.error('Falha ao parsear JSON da IA. Tratando como texto.', e);
+            return { type: 'text', 
+                content: "Desculpe, tive dificuldade em processar os dados para gerar a resposta. Por favor, tente reformular a pergunta."};
+        }
+    },
+    
+    buscaDados: BuscaDados,
+};

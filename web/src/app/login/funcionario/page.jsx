@@ -71,7 +71,7 @@ const AuthViewManager = () => {
         if (isAnimating) return;
         setIsAnimating(true);
         setTimeout(() => setView(newView), 700);
-        setTimeout(() => setIsAnimating(false), 1600);
+        setTimeout(() => setIsAnimating(false), 1300);
     };
     const maxHeightClasses = {
         login: 'max-h-[90vh] sm:max-h-[720px]',
@@ -125,8 +125,6 @@ const LoginForm = ({ onRegisterClick, onForgotPasswordClick }) => {
     const [lembrarDeMim, setLembrarDeMim] = useState(true);
     const [apiSuccess, setApiSuccess] = useState('');
 
-
-// Local: Dentro do componente `LoginForm` em seu page.jsx
 
 const onSubmit = async (data) => {
     setIsSubmitting(true);
@@ -214,8 +212,8 @@ const onSubmit = async (data) => {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4">
-                <button type="button" onClick={() => { setGoogleLoading(true); setTimeout(() => setGoogleLoading(false), 2000); }} className="social-button">{googleLoading ? <span className="loader"></span> : <GoogleIcon className="w-5 h-5" />} Google</button>
-                <button type="button" onClick={() => { setFacebookLoading(true); setTimeout(() => setFacebookLoading(false), 2000); }} className="social-button">{facebookLoading ? <span className="loader"></span> : <FacebookIcon className="w-5 h-5" />} Facebook</button>
+                <button type="button" onClick={() => { setGoogleLoading(true); setTimeout(() => setGoogleLoading(false), 1500); }} className="social-button">{googleLoading ? <span className="loader"></span> : <GoogleIcon className="w-5 h-5" />} Google</button>
+                <button type="button" onClick={() => { setFacebookLoading(true); setTimeout(() => setFacebookLoading(false), 1500); }} className="social-button">{facebookLoading ? <span className="loader"></span> : <FacebookIcon className="w-5 h-5" />} Facebook</button>
             </div>
 
             <div className="mt-8 text-center text-sm text-gray-500">
@@ -225,7 +223,6 @@ const onSubmit = async (data) => {
         </div>
     );
 };
-
 // -----------------------------------------------------------------------------
 // FORMULÁRIOS REGISTRO
 // -----------------------------------------------------------------------------
@@ -254,7 +251,7 @@ const RegisterForm = ({ onLoginClick, role = "FUNCIONARIO" }) => {
         try {
         
             await api.post('/usuarios/cadastro', apiData);
-            
+                        
             setApiSuccess("Cadastro realizado! Você será redirecionado para o login.");
             setTimeout(() => onLoginClick(), 2500); 
 
@@ -302,7 +299,7 @@ const RegisterForm = ({ onLoginClick, role = "FUNCIONARIO" }) => {
             </div>
 
             <div className=" sm:mt-8 text-center text-sm text-gray-500 p-8">
-                Você já é um membro ?
+                Você já é um membro?
                 <button onClick={onLoginClick} className="font-semibold text-yellow-600 underline-grow ml-1">Faça login</button>
             </div>
         </div>
