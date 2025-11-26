@@ -12,7 +12,7 @@ const MENU_ITEMS = [
   { title: 'Conta', icon: 'person-outline', screen: 'profile' },
   { title: 'Histórico', icon: 'time-outline', screen: 'historico' },
   { title: 'Ajustes', icon: 'settings-outline', screen: 'settings' },
-  { title: 'Ajuda', icon: 'help-circle-outline', screen: 'Ajuda' },
+  { title: 'Ajuda', icon: 'help-circle-outline', screen: 'ajuda' },
 ];
 
 export default function CustomSidebar({ isSidebarOpen, animatedValue, onClose, onNavigate }) {

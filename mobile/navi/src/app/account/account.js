@@ -14,7 +14,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as SQLite from "expo-sqlite";
 import { useLogin } from "../../providers/loginProvider";
 
-// === Abre o banco ===
 const openDb = async () => {
   return await SQLite.openDatabaseAsync("navi.db");
 };

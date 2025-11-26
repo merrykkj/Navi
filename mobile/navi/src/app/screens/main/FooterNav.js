@@ -32,14 +32,6 @@ export default function FooterNav({ activeTab, setActiveTab }) {
         <Text style={[styles.tab, activeTab === "profile" && styles.active]}>Profile</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => setActiveTab("settings")} style={styles.tabContainer}>
-        <Ionicons
-          name={activeTab === "settings" ? "settings" : "settings-outline"}
-          size={24}
-          color={activeTab === "settings" ? "#fff" : "#fff"}
-        />
-        <Text style={[styles.tab, activeTab === "settings" && styles.active]}>Settings</Text>
-      </TouchableOpacity>
     </View>
   );
 }

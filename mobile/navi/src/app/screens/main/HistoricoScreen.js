@@ -2,16 +2,15 @@ import React, { useState } from "react";
 import {
     View,
     Image,
-    StyleSheet,
     SafeAreaView,
     ScrollView,
-    Dimensions,
     TouchableOpacity,
     Text,
     StatusBar,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useLogin } from "../../../providers/loginProvider";
+import styles from "./Historicostyle";
 
 const initialHistoryData = [
     {
@@ -23,7 +22,7 @@ const initialHistoryData = [
         duration: "2h 15min",
         totalPrice: "R$ 15,75",
         status: "Concluído",
-        imageUrl: "https://images.unsplash.com/photo-1565043666747-69f6646db940?q=80&w=1074&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+        imageUrl: "https://images.unsplash.com/photo-1565043666747-69f6646db940?q=80&w=1074&auto=format&fit=crop"
     },
     {
         id: "h4",
@@ -34,7 +33,7 @@ const initialHistoryData = [
         duration: "1 dia, 22h, 48m e 30s",
         totalPrice: "R$ 0,00",
         status: "Pendente",
-        imageUrl: "https://images.unsplash.com/photo-1565043666747-69f6646db940?q=80&w=1074&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+        imageUrl: "https://images.unsplash.com/photo-1565043666747-69f6646db940?q=80&w=1074&auto=format&fit=crop"
     },
     {
         id: "h2",
@@ -45,7 +44,7 @@ const initialHistoryData = [
         duration: "2h 30min",
         totalPrice: "R$ 17,50",
         status: "Concluído",
-        imageUrl: "https://images.unsplash.com/photo-1617886322207-6f504e7472c5?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+        imageUrl: "https://images.unsplash.com/photo-1617886322207-6f504e7472c5?q=80&w=1170&auto=format&fit=crop"
     },
     {
         id: "h3",
@@ -56,7 +55,7 @@ const initialHistoryData = [
         duration: "Cancelado",
         totalPrice: "R$ 0,00",
         status: "Cancelado",
-        imageUrl: "https://images.unsplash.com/photo-1630165356623-266076eaceb6?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+        imageUrl: "https://images.unsplash.com/photo-1630165356623-266076eaceb6?q=80&w=1170&auto=format&fit=crop"
     },
 ];
 
@@ -70,9 +69,7 @@ const HistoryCard = ({ parking, onFinalize }) => {
     const { color, icon, action } = STATUS_MAP[parking.status] || STATUS_MAP['Concluído'];
     const durationIcon = parking.status === 'Pendente' ? 'watch-outline' : 'timer-outline';
     const durationColor = parking.status === 'Pendente' ? '#3B82F6' : '#4B5563';
-
-    let durationLabel = parking.status === 'Pendente' ? 'Tempo Atual' : 'Duração Total';
-
+    const durationLabel = parking.status === 'Pendente' ? 'Tempo Atual' : 'Duração Total';
     const isPending = parking.status === 'Pendente';
 
     const onPressAction = isPending
@@ -101,7 +98,6 @@ const HistoryCard = ({ parking, onFinalize }) => {
                 <View style={styles.divider} />
 
                 <View style={styles.detailsContainerOptimized}>
-
                     <View style={styles.detailItemOptimized}>
                         <Text style={styles.detailLabel}>Entrada</Text>
                         <View style={styles.detailValueRow}>
@@ -132,7 +128,6 @@ const HistoryCard = ({ parking, onFinalize }) => {
                 <View style={styles.divider} />
 
                 <View style={styles.footerRowHistory}>
-
                     <View style={styles.totalPriceContainer}>
                         <Text style={styles.totalPriceLabel}>Total Pago</Text>
                         <Text style={styles.totalPriceText}>{parking.totalPrice}</Text>
@@ -146,7 +141,6 @@ const HistoryCard = ({ parking, onFinalize }) => {
                         <Ionicons name="arrow-forward-outline" size={14} color="#fff" style={{ marginRight: 4 }} />
                         <Text style={styles.actionButtonTextSmall}>{action}</Text>
                     </TouchableOpacity>
-
                 </View>
             </View>
         </View>
@@ -158,48 +152,37 @@ export default function Historico() {
     const userName = user?.nome || "Cliente";
 
     const [history, setHistory] = useState(initialHistoryData);
-    const [activeFilter, setActiveFilter] = useState('Todos');
+    const [activeFilter] = useState('Todos');
 
     const handleFinalize = (id) => {
         const index = history.findIndex(item => item.id === id);
         if (index === -1) return;
 
         const now = new Date();
-        const simulatedExitTime = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()} às ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-
-        const newDuration = "2 dias, 15h e 50min";
-        const newPrice = "R$ 45,50";
+        const simulatedExitTime =
+            `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()} às ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 
         const updatedHistory = [...history];
         updatedHistory[index] = {
             ...updatedHistory[index],
             exitTime: simulatedExitTime,
-            duration: newDuration,
-            totalPrice: newPrice,
-            status: 'Concluído',
+            duration: "2 dias, 15h e 50min",
+            totalPrice: "R$ 45,50",
+            status: "Concluído",
         };
 
         setHistory(updatedHistory);
     };
 
-
     const filteredHistory = history
-        .sort((a, b) => {
-            if (a.status === 'Pendente' && b.status !== 'Pendente') return -1;
-            if (a.status !== 'Pendente' && b.status === 'Pendente') return 1;
-            return 0;
-        })
-        .filter(item => {
-            if (activeFilter === 'Todos') return true;
-            return item.status === activeFilter;
-        });
+        .sort((a, b) => (a.status === "Pendente" ? -1 : 1))
+        .filter(item => activeFilter === "Todos" || item.status === activeFilter);
 
     return (
         <SafeAreaView style={styles.safeArea}>
             <StatusBar barStyle="dark-content" backgroundColor="#f0f2f5" />
 
             <ScrollView contentContainerStyle={styles.scrollContentHistory}>
-                
                 <View style={styles.pageTitleContainer}>
                     <Text style={styles.mainTitle}>Histórico de Estacionamento</Text>
                 </View>
@@ -216,7 +199,7 @@ export default function Historico() {
                     {filteredHistory.length === 0 && (
                         <View style={styles.emptyState}>
                             <Ionicons name="search-outline" size={50} color="#9CA3AF" />
-                            <Text style={styles.emptyStateText}>Nenhum estacionamento com o status **"Todos"** foi encontrado.</Text>
+                            <Text style={styles.emptyStateText}>Nenhum estacionamento encontrado.</Text>
                         </View>
                     )}
                 </View>
@@ -224,175 +207,3 @@ export default function Historico() {
         </SafeAreaView>
     );
 }
-
-const { width } = Dimensions.get("window");
-const PADDING = width * 0.05;
-const PRIMARY_COLOR = "#EAB308";
-const TEXT_COLOR = "#1F2937";
-
-const styles = StyleSheet.create({
-    safeArea: {
-        flex: 1
-    },
-    pageTitleContainer: {
-        paddingHorizontal: PADDING,
-        paddingTop: 15,
-        paddingBottom: 20,
-    },
-    mainTitle: {
-        fontSize: 26,
-        fontWeight: "900",
-        color: TEXT_COLOR
-    },
-    scrollContentHistory: {
-        paddingBottom: 40
-    },
-    recommendationsContainer: {
-        paddingHorizontal: PADDING
-    },
-    card: {
-        backgroundColor: "#fff",
-        borderRadius: 18,
-        marginBottom: 16,
-        elevation: 5,
-        overflow: "hidden",
-        borderWidth: 1,
-        borderColor: '#eee',
-    },
-    cardImage: {
-        width: "100%",
-        height: 120
-    },
-    cardContent: {
-        padding: 15
-    },
-    cardHeaderRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 10,
-    },
-    cardTitle: {
-        fontSize: 19,
-        fontWeight: "800",
-        color: TEXT_COLOR,
-        flexShrink: 1,
-        marginRight: 10,
-    },
-    statusBox: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderRadius: 8,
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-    },
-    statusText: {
-        fontSize: 13,
-        fontWeight: "700",
-        color: "#fff",
-    },
-    infoRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 10,
-    },
-    infoText: {
-        fontSize: 14,
-        color: '#6B7280',
-        marginLeft: 6,
-    },
-    divider: {
-        height: 1,
-        backgroundColor: '#F3F4F6',
-        marginVertical: 10,
-    },
-    detailsContainerOptimized: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 10,
-    },
-    detailItemOptimized: {
-        alignItems: 'flex-start',
-        width: '48%',
-    },
-    detailLabel: {
-        fontSize: 12,
-        color: '#9CA3AF',
-        fontWeight: '600',
-        marginBottom: 4,
-        textTransform: 'uppercase',
-    },
-    detailValueRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    detailValueSmallest: {
-        fontSize: 11,
-        color: TEXT_COLOR,
-        fontWeight: '600',
-        flexShrink: 1,
-    },
-    durationRowContainer: {
-        marginBottom: 0,
-    },
-    durationContainerFull: {
-        alignItems: 'flex-start',
-        width: '100%',
-    },
-    durationValueRowFull: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-    },
-    footerRowHistory: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginTop: 5,
-    },
-    totalPriceContainer: {
-        alignItems: 'flex-start',
-    },
-    totalPriceLabel: {
-        fontSize: 11,
-        color: '#6B7280',
-        fontWeight: '600',
-        marginBottom: 2,
-    },
-    totalPriceText: {
-        fontSize: 15,
-        fontWeight: "900",
-        color: PRIMARY_COLOR,
-    },
-    actionButton: {
-        flexDirection: "row",
-        paddingVertical: 6,
-        paddingHorizontal: 10,
-        borderRadius: 10,
-        alignItems: "center",
-        justifyContent: "center",
-        elevation: 2,
-    },
-    actionButtonTextSmall: {
-        color: "#fff",
-        fontSize: 13,
-        fontWeight: "700",
-    },
-    emptyState: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: 50,
-        padding: 20,
-        backgroundColor: '#fff',
-        borderRadius: 15,
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-    },
-    emptyStateText: {
-        marginTop: 15,
-        fontSize: 16,
-        color: '#9CA3AF',
-        fontWeight: '600',
-        textAlign: 'center',
-    }
-});
