@@ -10,7 +10,7 @@ import {
   Image,
   ScrollView,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SQLite from "expo-sqlite";
 import { useLogin } from "../../providers/loginProvider";
 

@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../generated/prisma" 
 }
 
 datasource db {
@@ -7,14 +8,232 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-//
-// ENUMS
-//
-enum Papel {
-  ADMINISTRADOR
-  PROPRIETARIO
-  MOTORISTA
-  FUNCIONARIO
+model usuario {
+  id_usuario          Int                          @id @default(autoincrement())
+  nome                String                       @db.VarChar(255)
+  email               String                       @unique(map: "email") @db.VarChar(255)
+  senha               String                       @db.VarChar(255)
+  telefone            String?                      @db.VarChar(20)
+  url_foto_perfil     String?                      @db.VarChar(255)
+  papel               usuario_papel
+  data_criacao        DateTime                     @default(now()) @db.Timestamp(0)
+  ativo               Boolean                      @default(true)
+  resetToken          String?                      @db.VarChar(255)
+  resetTokenExpires   DateTime?                    @db.DateTime(0)
+  avaliacoes          avaliacao[]
+  contratoMensalistas contrato_mensalista[]
+  estacionamentos     estacionamento[]             @relation("Proprietario")
+  funcionario_est     estacionamento_funcionario[]
+  logs                log[]
+  reservas            reserva[]
+  veiculos            veiculo[]
+
+  @@map("usuario")
+}
+
+model estacionamento {
+  id_estacionamento  Int                          @id @default(autoincrement())
+  id_proprietario    Int
+  nome               String                       @db.VarChar(255)
+  cnpj               String                       @unique(map: "cnpj") @db.VarChar(18)
+  cep                String                       @db.VarChar(9)
+  rua                String                       @db.VarChar(255)
+  numero             String                       @db.VarChar(20)
+  bairro             String                       @db.VarChar(100)
+  cidade             String                       @db.VarChar(100)
+  estado             String                       @db.VarChar(2)
+  endereco_completo  String                       @db.VarChar(500)
+  latitude           Decimal                      @db.Decimal(10, 8)
+  longitude          Decimal                      @db.Decimal(10, 8)
+  url_foto_principal String?                      @db.VarChar(255)
+  horario_abertura   DateTime?                    @db.Time(0)
+  horario_fechamento DateTime?                    @db.Time(0)
+  dias_funcionamento String?                      @db.VarChar(100)
+  ativo              Boolean                      @default(true)
+  data_criacao       DateTime                     @default(now()) @db.Timestamp(0)
+  avaliacoes         avaliacao[]
+  proprietario       usuario                      @relation("Proprietario", fields: [id_proprietario], references: [id_usuario], onUpdate: Restrict, map: "estacionamento_ibfk_1")
+  funcionarios       estacionamento_funcionario[]
+  logs               log[]
+  planos             plano_mensal[]
+  precos             politica_preco[]
+  vagas              vaga[]
+
+  @@unique([cep, numero], map: "endereco_unico")
+  @@unique([latitude, longitude], map: "localizacao_unica")
+  @@index([id_proprietario], map: "id_proprietario")
+  @@map("estacionamento")
+}
+
+model estacionamento_funcionario {
+  id_estacionamento Int
+  id_usuario        Int
+  permissao         estacionamento_funcionario_permissao
+  data_admissao     DateTime                             @default(now()) @db.Timestamp(0)
+  estacionamento    estacionamento                       @relation(fields: [id_estacionamento], references: [id_estacionamento], onDelete: Cascade, onUpdate: Restrict, map: "estacionamento_funcionario_ibfk_1")
+  usuario           usuario                              @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, onUpdate: Restrict, map: "estacionamento_funcionario_ibfk_2")
+
+  @@id([id_estacionamento, id_usuario])
+  @@index([id_usuario], map: "id_usuario")
+  @@map("estacionamento_funcionario")
+}
+
+model veiculo {
+  id_veiculo     Int                   @id @default(autoincrement())
+  id_usuario     Int
+  placa          String                @unique(map: "placa") @db.VarChar(10)
+  marca          String                @db.VarChar(50)
+  modelo         String                @db.VarChar(50)
+  cor            String                @db.VarChar(30)
+  url_foto_placa String?               @db.VarChar(255)
+  apelido        String?               @db.VarChar(50)
+  ativo          Boolean?              @default(true)
+  data_criacao   DateTime              @default(now()) @db.Timestamp(0)
+  contratos      contrato_mensalista[]
+  reservas       reserva[]
+  usuario        usuario               @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, onUpdate: Restrict, map: "veiculo_ibfk_1")
+
+  @@index([id_usuario], map: "id_usuario")
+  @@map("veiculo")
+}
+
+model vaga {
+  id_vaga           Int            @id @default(autoincrement())
+  id_estacionamento Int
+  identificador     String         @db.VarChar(20)
+  tipo_vaga         TipoVaga?      @default(PADRAO)
+  status            StatusVaga?    @default(LIVRE)
+  reservas          reserva[]      @relation("VagaReservas")
+  estacionamento    estacionamento @relation(fields: [id_estacionamento], references: [id_estacionamento], onDelete: Cascade, onUpdate: Restrict, map: "vaga_ibfk_1")
+
+  @@unique([id_estacionamento, identificador], map: "id_estacionamento")
+  @@map("vaga")
+}
+
+model politica_preco {
+  id_politica_preco      Int            @id @default(autoincrement())
+  id_estacionamento      Int
+  descricao              String         @db.VarChar(100)
+  preco_primeira_hora    Decimal?       @default(0.00) @db.Decimal(10, 2)
+  preco_horas_adicionais Decimal?       @default(0.00) @db.Decimal(10, 2)
+  preco_diaria           Decimal?       @default(0.00) @db.Decimal(10, 2)
+  ativo                  Boolean        @default(true)
+  estacionamento         estacionamento @relation(fields: [id_estacionamento], references: [id_estacionamento], onDelete: Cascade, onUpdate: Restrict, map: "politica_preco_ibfk_1")
+
+  @@unique([id_estacionamento, descricao], map: "id_estacionamento_descricao")
+  @@map("politica_preco")
+}
+
+model plano_mensal {
+  id_plano          Int                   @id @default(autoincrement())
+  id_estacionamento Int
+  nome_plano        String                @db.VarChar(100)
+  descricao         String?               @db.Text
+  preco_mensal      Decimal               @db.Decimal(10, 2)
+  ativo             Boolean?              @default(true)
+  contratos         contrato_mensalista[]
+  estacionamento    estacionamento        @relation(fields: [id_estacionamento], references: [id_estacionamento], onDelete: Cascade, onUpdate: Restrict, map: "plano_mensal_ibfk_1")
+
+  @@unique([id_estacionamento, nome_plano], map: "id_estacionamento")
+  @@map("plano_mensal")
+}
+
+model contrato_mensalista {
+  id_contrato Int            @id @default(autoincrement())
+  id_usuario  Int
+  id_plano    Int
+  id_veiculo  Int
+  data_inicio DateTime       @db.Date
+  data_fim    DateTime?      @db.Date
+  status      StatusContrato
+  usuario     usuario        @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, onUpdate: Restrict, map: "contrato_mensalista_ibfk_1")
+  plano       plano_mensal   @relation(fields: [id_plano], references: [id_plano], onUpdate: Restrict, map: "contrato_mensalista_ibfk_2")
+  veiculo     veiculo        @relation(fields: [id_veiculo], references: [id_veiculo], onDelete: Cascade, onUpdate: Restrict, map: "contrato_mensalista_ibfk_3")
+
+  @@index([id_plano], map: "id_plano")
+  @@index([id_usuario], map: "id_usuario")
+  @@index([id_veiculo], map: "id_veiculo")
+  @@map("contrato_mensalista")
+}
+
+model reserva {
+  id_reserva       Int           @id @default(autoincrement())
+  id_usuario       Int
+  id_vaga          Int
+  id_veiculo       Int?
+  status           StatusReserva
+  data_hora_inicio DateTime      @default(now()) @db.Timestamp(0)
+  data_hora_fim    DateTime?     @db.Timestamp(0)
+  pagamento        pagamento?
+  usuario          usuario       @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, onUpdate: Restrict, map: "reserva_ibfk_1")
+  vaga             vaga          @relation("VagaReservas", fields: [id_vaga], references: [id_vaga], onDelete: Cascade, onUpdate: Restrict, map: "reserva_ibfk_2")
+  veiculo          veiculo?      @relation(fields: [id_veiculo], references: [id_veiculo], onUpdate: Restrict, map: "reserva_ibfk_3")
+
+  @@index([id_usuario], map: "id_usuario")
+  @@index([id_vaga], map: "id_vaga")
+  @@index([id_veiculo], map: "id_veiculo")
+  @@map("reserva")
+}
+
+model pagamento {
+  id_pagamento   Int             @id @default(autoincrement())
+  id_reserva     Int             @unique(map: "id_reserva")
+  id_cupom       Int?
+  valor_bruto    Decimal         @db.Decimal(10, 2)
+  valor_desconto Decimal?        @default(0.00) @db.Decimal(10, 2)
+  valor_liquido  Decimal         @db.Decimal(10, 2)
+  metodo         MetodoPagamento
+  status         StatusPagamento
+  data_hora      DateTime        @default(now()) @db.Timestamp(0)
+  reserva        reserva         @relation(fields: [id_reserva], references: [id_reserva], onDelete: Cascade, onUpdate: Restrict, map: "pagamento_ibfk_1")
+  cupom          cupom?          @relation(fields: [id_cupom], references: [id_cupom], onUpdate: Restrict, map: "pagamento_ibfk_2")
+
+  @@index([id_cupom], map: "id_cupom")
+  @@map("pagamento")
+}
+
+model cupom {
+  id_cupom      Int          @id @default(autoincrement())
+  codigo        String       @unique(map: "codigo") @db.VarChar(50)
+  descricao     String?      @db.Text
+  tipo_desconto TipoDesconto
+  valor         Decimal      @db.Decimal(10, 2)
+  data_validade DateTime     @db.Date
+  usos_maximos  Int?         @default(1)
+  usos_atuais   Int?         @default(0)
+  ativo         Boolean?     @default(true)
+  pagamentos    pagamento[]
+
+  @@map("cupom")
+}
+
+model avaliacao {
+  id_avaliacao      Int            @id @default(autoincrement())
+  id_usuario        Int
+  id_estacionamento Int
+  nota              Decimal        @db.Decimal(2, 1)
+  comentario        String?        @db.Text
+  data_postagem     DateTime       @default(now()) @db.Timestamp(0)
+  usuario           usuario        @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, onUpdate: Restrict, map: "avaliacao_ibfk_1")
+  estacionamento    estacionamento @relation(fields: [id_estacionamento], references: [id_estacionamento], onDelete: Cascade, onUpdate: Restrict, map: "avaliacao_ibfk_2")
+
+  @@index([id_estacionamento], map: "id_estacionamento")
+  @@index([id_usuario], map: "id_usuario")
+  @@map("avaliacao")
+}
+
+model log {
+  id_log            Int             @id @default(autoincrement())
+  id_usuario_acao   Int?
+  id_estacionamento Int?
+  acao              String          @db.VarChar(255)
+  detalhes          String?         @db.LongText
+  data_log          DateTime        @default(now()) @db.Timestamp(0)
+  usuario           usuario?        @relation(fields: [id_usuario_acao], references: [id_usuario], onUpdate: Restrict, map: "log_ibfk_1")
+  estacionamento    estacionamento? @relation(fields: [id_estacionamento], references: [id_estacionamento], onDelete: Cascade, onUpdate: Restrict, map: "log_ibfk_2")
+
+  @@index([id_estacionamento], map: "idx_estacionamento_log")
+  @@index([id_usuario_acao], map: "idx_usuario_log")
 }
 
 enum TipoVaga {
@@ -64,334 +283,16 @@ enum StatusReserva {
   EXPIRADA
 }
 
-enum TipoAnexo {
-  IMAGEM
-  VIDEO
+enum estacionamento_funcionario_permissao {
+  GESTOR
+  OPERADOR
 }
 
-//
-// USUÁRIO
-//
-model usuario {
-  id_usuario        Int       @id @default(autoincrement())
-  nome              String
-  email             String    @unique
-  senha             String
-  telefone          String?
-  url_foto_perfil   String?
-  papel             Papel
-  data_criacao      DateTime  @default(now())
-  ativo             Boolean   @default(true)
-  resetToken        String?
-  resetTokenExpires DateTime?
-
-  // Relações
-  veiculos            veiculo[]
-  reservas            reserva[]
-  avaliacoes          avaliacao[]
-  chatparticipante    ChatParticipante[]
-  mensagens           Mensagem[]                   @relation("MensagemRemetente")
-  leituras            LeituraMensagem[]
-  estacionamentos     estacionamento[]             @relation("Proprietario")
-  funcionario_est     estacionamento_funcionario[]
-  contratoMensalistas contrato_mensalista[]
-
-  @@map("usuario")
-}
-
-//
-// ESTACIONAMENTO
-//
-model estacionamento {
-  id_estacionamento  Int       @id @default(autoincrement())
-  id_proprietario    Int
-  nome               String
-  cnpj               String    @unique
-  cep                String
-  rua                String
-  numero             String
-  bairro             String
-  cidade             String
-  estado             String
-  endereco_completo  String
-  latitude           Decimal
-  longitude          Decimal
-  url_foto_principal String?
-  horario_abertura   DateTime?
-  horario_fechamento DateTime?
-  dias_funcionamento String?
-  ativo              Boolean   @default(true)
-  data_criacao       DateTime  @default(now())
-
-  proprietario usuario @relation(fields: [id_proprietario], references: [id_usuario], name: "Proprietario")
-
-  vagas        vaga[]
-  precos       politica_preco[]
-  planos       plano_mensal[]
-  funcionarios estacionamento_funcionario[]
-  avaliacoes   avaliacao[]
-
-  @@unique([cep, numero])
-  @@unique([latitude, longitude])
-  @@map("estacionamento")
-}
-
-//
-// FUNCIONÁRIO DE ESTACIONAMENTO
-//
-model estacionamento_funcionario {
-  id_estacionamento Int
-  id_usuario        Int
-  permissao         String
-  data_admissao     DateTime @default(now())
-
-  estacionamento estacionamento @relation(fields: [id_estacionamento], references: [id_estacionamento])
-  usuario        usuario        @relation(fields: [id_usuario], references: [id_usuario])
-
-  @@id([id_estacionamento, id_usuario])
-  @@map("estacionamento_funcionario")
-}
-
-//
-// VEÍCULO
-//
-model veiculo {
-  id_veiculo     Int      @id @default(autoincrement())
-  id_usuario     Int
-  placa          String   @unique
-  marca          String
-  modelo         String
-  cor            String
-  url_foto_placa String?
-  apelido        String?
-  ativo          Boolean  @default(true)
-  data_criacao   DateTime @default(now())
-
-  usuario   usuario               @relation(fields: [id_usuario], references: [id_usuario])
-  contratos contrato_mensalista[]
-  reservas  reserva[]
-
-  @@map("veiculo")
-}
-
-//
-// VAGA
-//
-model vaga {
-  id_vaga           Int        @id @default(autoincrement())
-  id_estacionamento Int
-  identificador     String
-  tipo_vaga         TipoVaga   @default(PADRAO)
-  status            StatusVaga @default(LIVRE)
-
-  estacionamento estacionamento @relation(fields: [id_estacionamento], references: [id_estacionamento])
-  reservas       reserva[]      @relation("VagaReservas")
-
-  @@unique([id_estacionamento, identificador])
-  @@map("vaga")
-}
-
-//
-// POLÍTICA DE PREÇO
-//
-model politica_preco {
-  id_politica_preco      Int     @id @default(autoincrement())
-  id_estacionamento      Int
-  descricao              String
-  preco_primeira_hora    Decimal @default(0.00)
-  preco_horas_adicionais Decimal @default(0.00)
-  preco_diaria           Decimal @default(0.00)
-  ativo                  Boolean @default(true)
-
-  estacionamento estacionamento @relation(fields: [id_estacionamento], references: [id_estacionamento])
-
-  @@unique([id_estacionamento, descricao])
-  @@map("politica_preco")
-}
-
-//
-// PLANO MENSAL
-//
-model plano_mensal {
-  id_plano          Int     @id @default(autoincrement())
-  id_estacionamento Int
-  nome_plano        String
-  descricao         String?
-  preco_mensal      Decimal
-  ativo             Boolean @default(true)
-
-  estacionamento estacionamento        @relation(fields: [id_estacionamento], references: [id_estacionamento])
-  contratos      contrato_mensalista[]
-
-  @@unique([id_estacionamento, nome_plano])
-  @@map("plano_mensal")
-}
-
-//
-// CONTRATO MENSALISTA
-//
-model contrato_mensalista {
-  id_contrato Int            @id @default(autoincrement())
-  id_usuario  Int
-  id_plano    Int
-  id_veiculo  Int
-  data_inicio DateTime
-  data_fim    DateTime?
-  status      StatusContrato
-
-  usuario usuario      @relation(fields: [id_usuario], references: [id_usuario])
-  plano   plano_mensal @relation(fields: [id_plano], references: [id_plano])
-  veiculo veiculo      @relation(fields: [id_veiculo], references: [id_veiculo])
-
-  @@map("contrato_mensalista")
-}
-
-//
-// RESERVA
-//
-model reserva {
-  id_reserva         Int           @id @default(autoincrement())
-  id_usuario         Int
-  id_vaga            Int
-  id_veiculo         Int?
-  codigo_confirmacao String?
-  data_hora_inicio   DateTime      @default(now())
-  data_hora_fim      DateTime?
-  status             StatusReserva
-
-  usuario   usuario    @relation(fields: [id_usuario], references: [id_usuario])
-  vaga      vaga       @relation("VagaReservas", fields: [id_vaga], references: [id_vaga])
-  veiculo   veiculo?   @relation(fields: [id_veiculo], references: [id_veiculo])
-  pagamento pagamento?
-
-  @@map("reserva")
-}
-
-//
-// PAGAMENTO
-//
-model pagamento {
-  id_pagamento   Int             @id @default(autoincrement())
-  id_reserva     Int             @unique
-  id_cupom       Int?
-  valor_bruto    Decimal
-  valor_desconto Decimal         @default(0.00)
-  valor_liquido  Decimal
-  metodo         MetodoPagamento
-  status         StatusPagamento
-  url_recibo     String?
-  data_hora      DateTime        @default(now())
-
-  reserva reserva @relation(fields: [id_reserva], references: [id_reserva])
-  cupom   cupom?  @relation(fields: [id_cupom], references: [id_cupom])
-
-  @@map("pagamento")
-}
-
-//
-// CUPOM
-//
-model cupom {
-  id_cupom      Int          @id @default(autoincrement())
-  codigo        String       @unique
-  descricao     String?
-  tipo_desconto TipoDesconto
-  valor         Decimal
-  data_validade DateTime
-  usos_maximos  Int          @default(1)
-  usos_atuais   Int          @default(0)
-  ativo         Boolean      @default(true)
-
-  pagamentos pagamento[]
-
-  @@map("cupom")
-}
-
-//
-// AVALIAÇÃO
-//
-model avaliacao {
-  id_avaliacao      Int      @id @default(autoincrement())
-  id_usuario        Int
-  id_estacionamento Int
-  nota              Decimal
-  comentario        String?
-  data_postagem     DateTime @default(now())
-
-  usuario        usuario           @relation(fields: [id_usuario], references: [id_usuario])
-  estacionamento estacionamento    @relation(fields: [id_estacionamento], references: [id_estacionamento])
-  anexos         anexo_avaliacao[]
-
-  @@map("avaliacao")
-}
-
-model anexo_avaliacao {
-  id_anexo     Int       @id @default(autoincrement())
-  id_avaliacao Int
-  tipo_anexo   TipoAnexo
-  url_anexo    String
-
-  avaliacao avaliacao @relation(fields: [id_avaliacao], references: [id_avaliacao])
-
-  @@map("anexo_avaliacao")
-}
-
-//
-// CHAT (COM ANEXOS)
-//
-model Chat {
-  id           Int      @id @default(autoincrement())
-  nome         String?
-  data_criacao DateTime @default(now())
-
-  participantes ChatParticipante[]
-  mensagens     Mensagem[]
-}
-
-model ChatParticipante {
-  id            Int      @id @default(autoincrement())
-  id_chat       Int
-  id_usuario    Int
-  ultimo_acesso DateTime @default(now())
-
-  chat    Chat    @relation(fields: [id_chat], references: [id])
-  usuario usuario @relation(fields: [id_usuario], references: [id_usuario])
-
-  @@unique([id_chat, id_usuario])
-}
-
-model Mensagem {
-  id           Int      @id @default(autoincrement())
-  id_chat      Int
-  id_remetente Int
-  conteudo     String?
-  data_envio   DateTime @default(now())
-
-  chat      Chat    @relation(fields: [id_chat], references: [id])
-  remetente usuario @relation("MensagemRemetente", fields: [id_remetente], references: [id_usuario])
-
-  anexos   MensagemAnexo[]
-  leituras LeituraMensagem[]
-}
-
-model MensagemAnexo {
-  id           Int    @id @default(autoincrement())
-  id_mensagem  Int
-  url          String
-  tipo         String
-  nome_arquivo String
-
-  mensagem Mensagem @relation(fields: [id_mensagem], references: [id])
-}
-
-model LeituraMensagem {
-  id           Int      @id @default(autoincrement())
-  id_mensagem  Int
-  id_leitor    Int
-  data_leitura DateTime @default(now())
-
-  mensagem Mensagem @relation(fields: [id_mensagem], references: [id])
-  leitor   usuario  @relation(fields: [id_leitor], references: [id_usuario])
-
-  @@unique([id_mensagem, id_leitor])
+enum usuario_papel {
+  ADMINISTRADOR
+  PROPRIETARIO
+  MOTORISTA
+  GESTOR
+  FUNCIONARIO
+  OPERADOR
 }

@@ -1,114 +1,50 @@
 //useLogin
 import { useLogin } from '../../providers/loginProvider';
 
-//importando bibliotecas
-import { useState, useEffect } from 'react';
-import { View, TextInput, Text, TouchableOpacity, StyleSheet, Alert, Image } from 'react-native';
-import * as SQLite from 'expo-sqlite';
-import { sha256 } from 'js-sha256';
+//bibliotecas
+import { useState } from 'react';
+import { View, TextInput, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 
-
-//inicialização do db
-const openDb = async () => {
-  return await SQLite.openDatabaseAsync('navi.db');
-}
-
-
-//Criação da tabela usuario
-const setupDatabase = async (db) => {
-  await db.execAsync(`
-    PRAGMA journal_mode = WAL;
-    CREATE TABLE IF NOT EXISTS usuario (
-      id_usuario INTEGER PRIMARY KEY AUTOINCREMENT,
-      nome VARCHAR(255) NOT NULL,
-      email VARCHAR(255) NOT NULL UNIQUE,
-      senha VARCHAR(255) NOT NULL,
-      telefone VARCHAR(20) NULL,
-      url_foto_perfil VARCHAR(255) NULL,
-      papel TEXT NOT NULL CHECK(papel IN ('ADMINISTRADOR', 'PROPRIETARIO', 'MOTORISTA')),
-      data_criacao TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      ativo BOOLEAN NULL DEFAULT 1,
-      resetToken VARCHAR(255) NULL UNIQUE,
-      resetTokenExpires DATETIME NULL
-    );
-  `);
-
-  //Verificar se a tabela usuario esta vazia, se estiver inserre alguns dados iniciais
-  const firstUser = await db.getFirstAsync('SELECT * FROM usuario');
-  if (!firstUser) {
-    console.log('Banco de dados vazio. Inserindo dados iniciais...');
-    await db.execAsync(`
-      INSERT INTO usuario (nome, email, senha, telefone, url_foto_perfil, papel)
-      VALUES
-      ('Alice Andrade', 'alice.admin@empresa.com', '${sha256('admin123')}', '(11) 99999-1111', 'https://i.pravatar.cc/150?img=10', 'ADMINISTRADOR'),
-      ('Bruno Paiva', 'bruno.proprietario@empresa.com',  '${sha256('prop456')}', '(11) 98888-2222', 'https://i.pravatar.cc/150?img=11', 'PROPRIETARIO'),
-      ('Carla Souza', 'carla.motorista@empresa.com',  '${sha256('motor789')}', '(11) 97777-3333', 'https://i.pravatar.cc/150?img=12', 'MOTORISTA');
-    `); // --> dados iniciais experimentais
-  }
-};
-
-export default function Account() {
-
-  return (
-    <View style={styles.page}>
-      <Text style={styles.title}>Tela da Conta</Text>
-      <LoginForm />
-    </View>
-  );
-}
-
-//Formulario de login
+// Formulário de login (sem SQLite)
 export const LoginForm = ({ navigation }) => {
   const { setUser } = useLogin();
-  const [form, setForm] = useState({
-    email: '',
-    senha: ''
-  });
 
-  useEffect(() => {
-    const initializeDb = async () => {
-      try {
-        const db = await openDb();
-        await setupDatabase(db);
-      } catch (error) {
-        console.error("Erro fatal ao inicializar o banco de dados:", error);
-        Alert.alert("Erro", "Não foi possível inicializar o banco de dados.");
-      }
-    };
+  const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
 
-    initializeDb();
-  }, []);
-
-
-  // enviar o formulário
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     try {
-      if (!form.email || !form.senha) {
+      if (!email || !senha) {
         throw new Error('Preencha todos os campos!');
       }
 
-      const db = await openDb();
-      const senhaHasheada = sha256(form.senha);
-      const user = await db.getFirstAsync(
-        'SELECT * FROM usuario WHERE email = ? AND senha = ?',
-        [form.email.trim(), senhaHasheada]
-      );
-
-      if (!user) {
-        throw new Error('Usuário não encontrado');
-      }
-      setUser(user);
-      Alert.alert('Login bem-sucedido!', `Bem-vindo, ${user.nome}!`);
-      setForm({
-        email: '',
-        senha: ''
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email,
+          senha: senha
+        }),
       });
-      console.log("Usuário logado:", user);
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Falha na autenticação');
+      }
+
+      Alert.alert('Login fictício', `Bem-vindo, ${fakeUser.nome}!`);
+      console.log('Login bem-sucedido:', data.user);
+
     } catch (error) {
       console.error(error);
-      Alert.alert('Erro no Login', error.message || 'Ocorreu um erro ao tentar logar.');
+      Alert.alert('Erro no Login', error.message || 'Erro desconhecido.');
     }
-  }
+  };
+
   return (
     <View style={styles.container}>
       <View style={{ alignItems: "center" }}>
@@ -120,7 +56,7 @@ export const LoginForm = ({ navigation }) => {
         style={styles.input}
         placeholder="Endereço de Email"
         value={form.email}
-        onChangeText={(text) => setForm({ ...form, email: text })}
+        onChangeText={(text) => setEmail(e.target.value)}
         keyboardType="email-address"
         autoCapitalize="none"
       />
@@ -134,7 +70,7 @@ export const LoginForm = ({ navigation }) => {
 
       {/* Esqueci a senha */}
       <View style={{ paddingTop: 10 }}>
-        <TouchableOpacity href="/forgot-password" onPress={() => navigation.navigate('Esqueci a senha')}>
+        <TouchableOpacity onPress={() => navigation.navigate('Esqueci a senha')}>
           <Text style={styles.links}>Esqueci a senha</Text>
         </TouchableOpacity>
       </View>
@@ -148,16 +84,13 @@ export const LoginForm = ({ navigation }) => {
       <View style={{ display: "flex", flexDirection: "row", paddingTop: 15 }}>
         <Text>Não tem uma conta? </Text>
         <TouchableOpacity onPress={() => navigation.navigate('Cadastre-se')}>
-        <Text style={styles.links}>Cadastre-se</Text>
+          <Text style={styles.links}>Cadastre-se</Text>
         </TouchableOpacity>
       </View>
     </View>
-
-
-
-
   );
-}
+};
+
 const styles = StyleSheet.create({
   page: {
     flex: 1,

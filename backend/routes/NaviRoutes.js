@@ -1,49 +1,50 @@
-import { Router } from 'express';
+import express from 'express';
+import { 
+    naviAdminController, 
+    naviProprietarioController,
+    naviDownloadController 
+} from '../controllers/NaviAskController.js'; 
 
-import { askAdmin, askProprietario } from '../controllers/NaviController.js';
+import { 
+    listarConversasController, 
+    obterHistoricoController, 
+    salvarConversaController 
+} from '../controllers/ConversaNaviController.js'; 
 
-// [CORREÇÃO-CHAVE]: Importando ambos os middlewares
+import { authMiddleware, authorize } from '../middlewares/AuthMiddlewares.js'; 
 
-import { authMiddleware, authorize } from '../middlewares/AuthMiddlewares.js';
-
-
-
-const router = Router();
-
-
-
-// Rota para o PROPRIETÁRIO
-
-router.post(
-
-  '/proprietario/ask',
-
-  // [CORREÇÃO-CHAVE]: Usando os middlewares em sequência
-
-  authMiddleware, // 1. Primeiro, verifica se o token é válido. É chamado sem () porque é um middleware direto.
-
-  authorize(['PROPRIETARIO', 'GESTOR']), // 2. Depois, verifica se o usuário tem o papel correto.
-
-  askProprietario // 3. Se ambos passarem, executa o controller.
-
-);
+const router = express.Router();
 
 
+router.use(authMiddleware);
 
-// Rota para o ADMIN
+// =======================================================
+// 1. ROTAS DE INTERAÇÃO COM A IA
+// =======================================================
 
-router.post(
+// Rota Admin (Visão Global)
+router.post('/navi/admin/ask', authorize(['ADMINISTRADOR']), naviAdminController);
 
-  '/admin/ask',
+// Rota Proprietário (Visão Específica)
+router.post('/navi/proprietario/ask', authorize(['PROPRIETARIO', 'GESTOR', 'FUNCIONARIO']), naviProprietarioController);
 
-  authMiddleware, // 1. Verifica se está autenticado
-
-  authorize(['ADMINISTRADOR']), // 2. Verifica se é um administrador
-
-  askAdmin // 3. Executa o controller
-
-);
+// [NOVA ROTA] Download de Documentos (PDF/DOCX)
+// O frontend chama esta rota quando recebe um type: 'document'
+router.post('/navi/download', naviDownloadController);
 
 
+// =======================================================
+// 2. ROTAS DE PERSISTÊNCIA (HISTÓRICO)
+// =======================================================
+
+// Lista todas as conversas do usuário (para a Sidebar)
+router.get('/conversas-navi', listarConversasController);
+
+// Salva ou Atualiza uma conversa no banco
+router.post('/conversas-navi/salvar', salvarConversaController);
+
+// Obtém o histórico de mensagens de uma conversa específica
+// Nota: O parametro no controller geralmente é :id, ajustei para bater com o controller padrão
+router.get('/conversas-navi/:id/historico', obterHistoricoController);
 
 export default router;

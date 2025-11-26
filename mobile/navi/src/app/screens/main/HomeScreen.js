@@ -4,7 +4,6 @@ import {
   TextInput,
   Image,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   Dimensions,
   TouchableOpacity,
@@ -12,6 +11,7 @@ import {
   StatusBar,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLogin } from "../../../providers/loginProvider"; 
 
 const parkingData = [
