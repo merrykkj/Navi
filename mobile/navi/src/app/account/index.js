@@ -1,19 +1,16 @@
 //useLogin
-import { useLogin } from '../../providers/loginProvider';
+import { useLogin } from '../../providers/loginProvider.js'
 
 //bibliotecas
 import { useState } from 'react';
 import { View, TextInput, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 
-// URL da API (se precisar, coloque sua URL real)
-const apiUrl = "http://seu-backend.com/login";
-
 // Formulário de login
 export const LoginForm = ({ navigation }) => {
   const { setUser } = useLogin();
-
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  const apiUrlLogin = 'http://10.84.6.146:3002/auth/login';
 
   const handleSubmit = async () => {
     try {
@@ -22,20 +19,22 @@ export const LoginForm = ({ navigation }) => {
         return;
       }
 
-      const response = await fetch(apiUrl, {
+      const response = await fetch(apiUrlLogin, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, senha })
       });
+      //email teste: proprietario@email.com
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Falha na autenticação");
+        Alert.alert(data.mensagem, "Não enccontramos o usuario inserido" || 'Falha na autenticação');
       }
 
-      Alert.alert("Login realizado", `Bem-vindo(a), ${data.user?.nome || "usuário"}`);
       setUser(data.user);
+
+      Alert.alert('Login Realizado com sucesso!', `Bem-vindo, ${data.user.nome}!`);
 
     } catch (error) {
       console.error(error);
