@@ -1,11 +1,13 @@
 import mysql from 'mysql2/promise';
 import bcrypt from 'bcryptjs';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const pool = mysql.createPool({
-    host: 'localhost',
-    user: 'root',
+    host: process.env.DATABASE_URL || 'localhost',
+    user: process.env.DATABASE_USER || 'root',
     password: '',
-    database: 'zelos',
+    database: process.env.DATABASE_NAME || 'navi',
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0

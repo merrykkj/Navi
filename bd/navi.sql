@@ -1,692 +1,335 @@
--- Cria o banco de dados caso ele não exista
+-- =================================================================================
+-- PASSO 1: CONFIGURAÇÃO DO BANCO DE DADOS
+-- =================================================================================
+
 CREATE DATABASE IF NOT EXISTS navi;
 USE navi;
 
--- ************************************************************
--- 🚨 ETAPA DE LIMPEZA: Recomenda-se rodar estes comandos
--- para limpar dados antigos antes de inserir novos
--- ************************************************************
-SET FOREIGN_KEY_CHECKS = 0;
-DROP TABLE IF EXISTS anexo_avaliacao, avaliacao, pagamento, cupom, reserva, vaga, politica_preco, contrato_mensalista, plano_mensal, veiculo, estacionamento_funcionario, estacionamento, usuario, log;
-SET FOREIGN_KEY_CHECKS = 1;
-
 
 -- =================================================================================
--- TABELAS (COPIADAS DO SEU MODELO)
+-- PASSO 2: CRIAÇÃO DE TODAS AS TABELAS
 -- =================================================================================
-CREATE TABLE usuario (
-    id_usuario INT AUTO_INCREMENT PRIMARY KEY,
-    nome VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
-    senha VARCHAR(255) NOT NULL,
-    telefone VARCHAR(20),
-    url_foto_perfil VARCHAR(255),
-    papel ENUM('ADMINISTRADOR', 'PROPRIETARIO', 'FUNCIONARIO', 'MOTORISTA') NOT NULL,
-    data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    ativo BOOLEAN DEFAULT TRUE,
-    resetToken VARCHAR(255) NULL UNIQUE,
-    resetTokenExpires DATETIME NULL
+
+-- Tabela principal de usuários. A fonte da verdade para autenticação e papéis.
+CREATE TABLE IF NOT EXISTS `usuarios` (
+    `id` VARCHAR(36) NOT NULL PRIMARY KEY DEFAULT (UUID()),
+    `nome` VARCHAR(255) NOT NULL,
+    `email` VARCHAR(255) NOT NULL UNIQUE,
+    `senha` VARCHAR(255) NOT NULL,
+    `telefone` VARCHAR(20) NULL,
+    `url_foto_perfil` VARCHAR(255) NULL,
+    `papel` ENUM('ADMINISTRADOR', 'PROPRIETARIO', 'FUNCIONARIO') NOT NULL,
+    `ativo` BOOLEAN NOT NULL DEFAULT TRUE,
+    `reset_token` VARCHAR(255) NULL,
+    `reset_token_expires` DATETIME NULL,
+    `data_criacao` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `data_atualizacao` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-CREATE TABLE estacionamento (
-    id_estacionamento INT AUTO_INCREMENT PRIMARY KEY,
-    id_proprietario INT NOT NULL,
-    nome VARCHAR(255) NOT NULL,
-    cnpj VARCHAR(18) NOT NULL UNIQUE,
-    cep VARCHAR(9) NOT NULL,
-    rua VARCHAR(255) NOT NULL,
-    numero VARCHAR(20) NOT NULL,
-    bairro VARCHAR(100) NOT NULL,
-    cidade VARCHAR(100) NOT NULL,
-    estado VARCHAR(2) NOT NULL,    
-    endereco_completo VARCHAR(500) NOT NULL, 
-    latitude DECIMAL(10, 8) NOT NULL,
-    longitude DECIMAL(10, 8) NOT NULL,
-    url_foto_principal VARCHAR(255),
-    ativo BOOLEAN DEFAULT TRUE,
-    horario_abertura TIME,
-    horario_fechamento TIME,
-    dias_funcionamento VARCHAR(100),
-    data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (id_proprietario) REFERENCES usuario(id_usuario) ON DELETE RESTRICT ON UPDATE CASCADE,
-    UNIQUE KEY endereco_unico (cep, numero),
-    UNIQUE KEY localizacao_unica (latitude, longitude)
+-- Tabela para os estacionamentos. Cada um pertence a um PROPRIETARIO.
+CREATE TABLE IF NOT EXISTS `estabelecimentos` (
+    `id` VARCHAR(36) NOT NULL PRIMARY KEY DEFAULT (UUID()),
+    `proprietario_id` VARCHAR(36) NOT NULL,
+    `nome` VARCHAR(255) NOT NULL,
+    `cnpj` VARCHAR(18) NOT NULL UNIQUE,
+    `cep` VARCHAR(9) NOT NULL,
+    `rua` VARCHAR(255) NOT NULL,
+    `numero` VARCHAR(20) NOT NULL,
+    `bairro` VARCHAR(100) NOT NULL,
+    `cidade` VARCHAR(100) NOT NULL,
+    `estado` VARCHAR(2) NOT NULL,
+    `endereco_completo` VARCHAR(500) GENERATED ALWAYS AS (CONCAT(rua, ', ', numero, ' - ', bairro, ', ', cidade, ' - ', estado, ', ', cep)) STORED,
+    `latitude` DECIMAL(10, 8) NULL,
+    `longitude` DECIMAL(10, 8) NULL,
+    `url_foto_principal` VARCHAR(255) NULL,
+    `horario_abertura` TIME,
+    `horario_fechamento` TIME,
+    `dias_funcionamento` VARCHAR(100),
+    `ativo` BOOLEAN NOT NULL DEFAULT TRUE,
+    `data_criacao` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `data_atualizacao` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (`proprietario_id`) REFERENCES `usuarios`(`id`) ON DELETE CASCADE
 );
 
--- ... (Outras tabelas para a consistência do BD) ...
--- (O restante das tabelas do seu BD original deve ser inserido aqui para manter a consistência)
-
-
--- =================================================================================
--- INSERTS DE DADOS (PARA PAGINAÇÃO)
--- =================================================================================
-
--- Senha padrão para todos: 'senha123' (hash gerado: $2b$10$qXMzRDjJU/b3piM8RNexA.B6iONreZ1XP9nc9DRNkhSODmJSk3cKW)
-SET @senha_hash = '$2b$10$qXMzRDjJU/b3piM8RNexA.B6iONreZ1XP9nc9DRNkhSODmJSk3cKW'; 
-
--- 🚨 INSERTS DE USUÁRIOS (7 Usuários) - Para Paginação de Usuários
-INSERT IGNORE INTO usuario (id_usuario, nome, email, senha, papel, ativo) VALUES
-(1, 'Admin Master', 'admin@navi.com', @senha_hash, 'ADMINISTRADOR', TRUE), -- ID 1: Administrador
-(2, 'Marcos Proprietario', 'marcos@prop.com', @senha_hash, 'PROPRIETARIO', TRUE), -- ID 2: Proprietário
-(3, 'Ana Proprietaria', 'ana@prop.com', @senha_hash, 'PROPRIETARIO', TRUE), -- ID 3: Proprietário
-(4, 'Pedro Motorista', 'pedro@motor.com', @senha_hash, 'MOTORISTA', TRUE), -- ID 4: Motorista
-(5, 'Carla Motorista', 'carla@motor.com', @senha_hash, 'MOTORISTA', TRUE), -- ID 5: Motorista
-(6, 'Joao Funcionario', 'joao@func.com', @senha_hash, 'FUNCIONARIO', TRUE), -- ID 6: Funcionário
-(7, 'Usuario Inativo', 'inativo@user.com', @senha_hash, 'MOTORISTA', FALSE); -- ID 7: Inativo
-
--- 🚨 INSERTS DE ESTACIONAMENTOS (7 Estacionamentos) - Para Paginação de Estacionamentos
-INSERT INTO estacionamento 
-    (id_proprietario, nome, cnpj, cep, rua, numero, bairro, cidade, estado, endereco_completo, latitude, longitude) 
-VALUES
-    (2, 'Estacionamento Central', '11.111.111/0001-11', '01001-000', 'Praça da Sé', '100', 'Sé', 'São Paulo', 'SP', 'Praça da Sé, 100 - Sé, São Paulo - SP, 01001-000', -23.5507, -46.6343), -- 1
-    (2, 'Estacionamento Paulista', '22.222.222/0001-22', '01311-200', 'Avenida Paulista', '1578', 'Bela Vista', 'São Paulo', 'SP', 'Avenida Paulista, 1578 - Bela Vista, São Paulo - SP, 01311-200', -23.5614, -46.6565), -- 2
-    (3, 'Estacionamento Pinheiros', '33.333.333/0001-33', '05425-070', 'Rua dos Pinheiros', '500', 'Pinheiros', 'São Paulo', 'SP', 'Rua dos Pinheiros, 500 - Pinheiros, São Paulo - SP, 05425-070', -23.5677, -46.6953), -- 3
-    (3, 'Estacionamento Ibirapuera', '44.444.444/0001-44', '04003-010', 'Rua Manoel da Nóbrega', '200', 'Vila Mariana', 'São Paulo', 'SP', 'Rua Manoel da Nóbrega, 200 - Vila Mariana', -23.5796, -46.6588), -- 4
-    (1, 'Estacionamento Admin', '55.555.555/0001-55', '01046-010', 'Avenida Ipiranga', '120', 'República', 'São Paulo', 'SP', 'Avenida Ipiranga, 120 - República', -23.5458, -46.6366), -- 5
-    (2, 'Estacionamento Desativado', '66.666.666/0001-66', '03107-000', 'Rua da Mooca', '400', 'Mooca', 'São Paulo', 'SP', 'Rua da Mooca, 400 - Mooca', -23.5583, -46.6111), -- 6 (Exemplo para o Filtro de Ativo/Inativo)
-    (3, 'Estacionamento Lapa', '77.777.777/0001-77', '05073-010', 'Rua Clélia', '300', 'Lapa', 'São Paulo', 'SP', 'Rua Clélia, 300 - Lapa', -23.5262, -46.6919); -- 7
-    
--- Para simular um estacionamento inativo no frontend, você precisaria de um campo 'ativo' na tabela estacionamento 
--- e um PUT que o controle. Como o campo 'ativo' não estava no seu DDL de estacionamento, 
--- usaremos apenas os 7 ativos (o que é suficiente para o teste de paginação).
-    FOREIGN KEY (id_estacionamento) REFERENCES estacionamento(id_estacionamento) ON DELETE CASCADE
+-- Tabela que vincula usuários (com papel FUNCIONARIO) a um ou mais estabelecimentos.
+CREATE TABLE IF NOT EXISTS `estacionamento_funcionarios` (
+    `estabelecimento_id` VARCHAR(36) NOT NULL,
+    `usuario_id` VARCHAR(36) NOT NULL,
+    `permissao` ENUM('GESTOR', 'OPERADOR') NOT NULL,
+    `data_admissao` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`estabelecimento_id`, `usuario_id`),
+    FOREIGN KEY (`estabelecimento_id`) REFERENCES `estabelecimentos`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`usuario_id`) REFERENCES `usuarios`(`id`) ON DELETE CASCADE
 );
 
--- =================================================================================
--- Vincula um usuário e seu veículo a um plano mensal específico.
--- =================================================================================
-CREATE TABLE contrato_mensalista (
-    id_contrato INT AUTO_INCREMENT PRIMARY KEY,
-    id_usuario INT NOT NULL,
-    id_plano INT NOT NULL,
-    id_veiculo INT NOT NULL,
-    data_inicio DATE NOT NULL,
-    data_fim DATE, -- Pode ser nulo para renovação automática.
-    status ENUM('ATIVO', 'INATIVO', 'CANCELADO') NOT NULL,
-
-    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
-    FOREIGN KEY (id_plano) REFERENCES plano_mensal(id_plano) ON DELETE RESTRICT, -- Impede apagar um plano com contratos ativos.
-    FOREIGN KEY (id_veiculo) REFERENCES veiculo(id_veiculo) ON DELETE CASCADE
+-- Tabela para as vagas de um estacionamento.
+CREATE TABLE IF NOT EXISTS `vagas` (
+    `id` VARCHAR(36) NOT NULL PRIMARY KEY DEFAULT (UUID()),
+    `estabelecimento_id` VARCHAR(36) NOT NULL,
+    `identificador` VARCHAR(20) NOT NULL,
+    `tipo_vaga` ENUM('CARRO', 'MOTO', 'PCD', 'IDOSO', 'ELETRICO' , 'V_GRANDES') NOT NULL DEFAULT 'CARRO',
+    `status` ENUM('LIVRE', 'OCUPADA', 'RESERVADA', 'MANUTENCAO') NOT NULL DEFAULT 'LIVRE',
+    `data_criacao` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `data_atualizacao` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (`estabelecimento_id`) REFERENCES `estabelecimentos`(`id`) ON DELETE CASCADE,
+    UNIQUE (`estabelecimento_id`, `identificador`)
 );
 
--- =================================================================================
--- Tabela de Políticas de Preço: Para clientes avulsos.
--- =================================================================================
-CREATE TABLE politica_preco (
-    id_politica_preco INT AUTO_INCREMENT PRIMARY KEY,
-    id_estacionamento INT NOT NULL,
-    descricao VARCHAR(100) NOT NULL,
-    preco_primeira_hora DECIMAL(10, 2) DEFAULT 0.00,
-    preco_horas_adicionais DECIMAL(10, 2) DEFAULT 0.00,
-    preco_diaria DECIMAL(10, 2) DEFAULT 0.00,
-    ativo BOOLEAN DEFAULT TRUE,
-    
-    FOREIGN KEY (id_estacionamento) REFERENCES estacionamento(id_estacionamento)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE
+-- Tabela de veículos cadastrados pelos usuários.
+CREATE TABLE IF NOT EXISTS `veiculos` (
+    `id` VARCHAR(36) NOT NULL PRIMARY KEY DEFAULT (UUID()),
+    `usuario_id` VARCHAR(36) NOT NULL,
+    `placa` VARCHAR(10) NOT NULL UNIQUE,
+    `marca` VARCHAR(50) NOT NULL,
+    `modelo` VARCHAR(50) NOT NULL,
+    `cor` VARCHAR(30) NOT NULL,
+    `apelido` VARCHAR(50),
+    `ativo` BOOLEAN DEFAULT TRUE,
+    `data_criacao` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (`usuario_id`) REFERENCES `usuarios`(`id`) ON DELETE CASCADE
 );
 
--- =================================================================================
--- Tabela de Vagas: Representa cada vaga individual em um estacionamento.
--- =================================================================================
-CREATE TABLE vaga (
-    id_vaga INT AUTO_INCREMENT PRIMARY KEY,
-    id_estacionamento INT NOT NULL,
-    identificador VARCHAR(20) NOT NULL,
-    tipo_vaga ENUM('PADRAO', 'PCD', 'IDOSO', 'ELETRICO', 'MOTO') DEFAULT 'PADRAO',
-    status ENUM('LIVRE', 'OCUPADA', 'RESERVADA', 'MANUTENCAO') DEFAULT 'LIVRE',
-    
-    FOREIGN KEY (id_estacionamento) REFERENCES estacionamento(id_estacionamento)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE,
-        
-    UNIQUE (id_estacionamento, identificador)
+-- Tabela de políticas de preço para cada estacionamento.
+CREATE TABLE IF NOT EXISTS `politicas_preco` (
+    `id` VARCHAR(36) NOT NULL PRIMARY KEY DEFAULT (UUID()),
+    `estabelecimento_id` VARCHAR(36) NOT NULL,
+    `nome` VARCHAR(100) NOT NULL,
+    `preco_primeira_hora` DECIMAL(10, 2) NOT NULL,
+    `preco_horas_adicionais` DECIMAL(10, 2) NOT NULL,
+    `preco_diaria` DECIMAL(10, 2) NOT NULL,
+    `ativa` BOOLEAN NOT NULL DEFAULT TRUE,
+    `data_criacao` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (`estabelecimento_id`) REFERENCES `estabelecimentos`(`id`) ON DELETE CASCADE,
+    UNIQUE KEY (`estabelecimento_id`, `nome`)
 );
 
--- =================================================================================
--- Tabela de Reservas: Para clientes avulsos.
--- =================================================================================
-CREATE TABLE reserva (
-    id_reserva INT AUTO_INCREMENT PRIMARY KEY,
-    id_usuario INT NOT NULL,
-    id_vaga INT NOT NULL,
-    id_veiculo INT NULL,
-    codigo_confirmacao VARCHAR(100) UNIQUE,
-    data_hora_inicio TIMESTAMP NOT NULL,
-    data_hora_fim TIMESTAMP NULL, -- CORRIGIDO: Alterado para NULL para permitir reservas ativas.
-    status ENUM('ATIVA', 'CONCLUIDA', 'CANCELADA', 'EXPIRADA') NOT NULL,
-    
-    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE,
-    FOREIGN KEY (id_vaga) REFERENCES vaga(id_vaga)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE,
-    FOREIGN KEY (id_veiculo) REFERENCES veiculo(id_veiculo)
-        ON DELETE SET NULL
-        ON UPDATE CASCADE
+-- Tabela de planos para mensalistas.
+CREATE TABLE IF NOT EXISTS `planos_mensais` (
+    `id` VARCHAR(36) NOT NULL PRIMARY KEY DEFAULT (UUID()),
+    `estabelecimento_id` VARCHAR(36) NOT NULL,
+    `nome_plano` VARCHAR(100) NOT NULL,
+    `descricao` TEXT,
+    `preco_mensal` DECIMAL(10, 2) NOT NULL,
+    `popular` BOOLEAN DEFAULT FALSE,
+    `ativo` BOOLEAN DEFAULT TRUE,
+    `data_criacao` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (`estabelecimento_id`) REFERENCES `estabelecimentos`(`id`) ON DELETE CASCADE,
+    UNIQUE (`estabelecimento_id`, `nome_plano`)
 );
 
--- =================================================================================
--- Para campanhas de marketing e fidelização de clientes avulsos.
--- =================================================================================
-CREATE TABLE cupom (
-    id_cupom INT AUTO_INCREMENT PRIMARY KEY,
-    codigo VARCHAR(50) NOT NULL UNIQUE,
-    descricao TEXT,
-    tipo_desconto ENUM('PERCENTUAL', 'FIXO') NOT NULL,
-    valor DECIMAL(10, 2) NOT NULL, -- Se for percentual, armazena a porcentagem (ex: 10 para 10%). Se fixo, o valor (ex: 5.00 para R$5).
-    data_validade DATE NOT NULL,
-    usos_maximos INT DEFAULT 1,
-    usos_atuais INT DEFAULT 0,
-    ativo BOOLEAN DEFAULT TRUE
+-- Tabela que representa o contrato de um usuário a um plano mensal.
+CREATE TABLE IF NOT EXISTS `contratos_mensalistas` (
+    `id` VARCHAR(36) NOT NULL PRIMARY KEY DEFAULT (UUID()),
+    `usuario_id` VARCHAR(36) NOT NULL,
+    `plano_id` VARCHAR(36) NOT NULL,
+    `veiculo_id` VARCHAR(36) NOT NULL,
+    `data_inicio` DATE NOT NULL,
+    `data_fim` DATE,
+    `status` ENUM('ATIVO', 'INATIVO', 'CANCELADO') NOT NULL DEFAULT 'ATIVO',
+    `data_criacao` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (`usuario_id`) REFERENCES `usuarios`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`plano_id`) REFERENCES `planos_mensais`(`id`) ON DELETE RESTRICT,
+    FOREIGN KEY (`veiculo_id`) REFERENCES `veiculos`(`id`) ON DELETE CASCADE
 );
 
--- =================================================================================
--- Tabela de Pagamentos: Relacionada a uma reserva.
--- =================================================================================
-CREATE TABLE pagamento (
-    id_pagamento INT AUTO_INCREMENT PRIMARY KEY,
-    id_reserva INT NOT NULL UNIQUE,
-    id_cupom INT NULL, -- CAMPO NOVO: Referência ao cupom utilizado.
-    valor_bruto DECIMAL(10, 2) NOT NULL,
-    valor_desconto DECIMAL(10, 2) DEFAULT 0.00,
-    valor_liquido DECIMAL(10, 2) NOT NULL,
-    metodo ENUM('PIX', 'DEBITO', 'CREDITO', 'DINHEIRO') NOT NULL,
-    status ENUM('PENDENTE', 'APROVADO', 'RECUSADO', 'ESTORNADO') NOT NULL,
-    url_recibo VARCHAR(255),
-    data_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (id_reserva) REFERENCES reserva(id_reserva) ON DELETE CASCADE,
-    FOREIGN KEY (id_cupom) REFERENCES cupom(id_cupom) ON DELETE SET NULL -- Se o cupom for apagado, o pagamento mantém o registro.
+-- Tabela de reservas de vagas.
+CREATE TABLE IF NOT EXISTS `reservas` (
+    `id` VARCHAR(36) NOT NULL PRIMARY KEY DEFAULT (UUID()),
+    `usuario_id` VARCHAR(36) NOT NULL,
+    `vaga_id` VARCHAR(36) NOT NULL,
+    `veiculo_id` VARCHAR(36) NULL,
+    `status` ENUM('ATIVA', 'CONCLUIDA', 'CANCELADA', 'EXPIRADA') NOT NULL,
+    `data_hora_inicio` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `data_hora_fim` TIMESTAMP NULL,
+    `data_criacao` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (`usuario_id`) REFERENCES `usuarios`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`vaga_id`) REFERENCES `vagas`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`veiculo_id`) REFERENCES `veiculos`(`id`) ON DELETE SET NULL
 );
 
--- =================================================================================
--- Tabela de Avaliações: Feedbacks dos usuários sobre os estacionamentos.
--- =================================================================================
-CREATE TABLE avaliacao (
-    id_avaliacao INT AUTO_INCREMENT PRIMARY KEY,
-    id_usuario INT NOT NULL,
-    id_estacionamento INT NOT NULL,
-    nota DECIMAL(2, 1) NOT NULL,
-    comentario TEXT,
-    data_postagem TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
-    FOREIGN KEY (id_estacionamento) REFERENCES estacionamento(id_estacionamento) ON DELETE CASCADE
+-- Tabela de cupons de desconto, disponíveis para todo o sistema.
+CREATE TABLE IF NOT EXISTS `cupons` (
+  `id` VARCHAR(36) NOT NULL PRIMARY KEY DEFAULT (UUID()),
+  `codigo` VARCHAR(50) NOT NULL UNIQUE,
+  `descricao` TEXT NULL,
+  `tipo_desconto` ENUM('PERCENTUAL', 'VALOR_FIXO') NOT NULL,
+  `valor_desconto` DECIMAL(10, 2) NOT NULL,
+  `data_validade` DATE NOT NULL,
+  `usos_maximos` INT NULL, -- Nulo para ilimitado
+  `usos_atuais` INT NOT NULL DEFAULT 0,
+  `ativo` BOOLEAN NOT NULL DEFAULT TRUE,
+  `data_criacao` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- =================================================================================
--- Tabela de Anexos da Avaliação: Permite múltiplas imagens/vídeos por avaliação.
--- =================================================================================
-CREATE TABLE anexo_avaliacao (
-    id_anexo INT AUTO_INCREMENT PRIMARY KEY,
-    id_avaliacao INT NOT NULL,
-    tipo_anexo ENUM('IMAGEM', 'VIDEO') DEFAULT 'IMAGEM',
-    url_anexo VARCHAR(255) NOT NULL,
-
-    FOREIGN KEY (id_avaliacao) REFERENCES avaliacao(id_avaliacao) ON DELETE CASCADE
+-- Tabela de pagamentos, vinculada a uma reserva.
+CREATE TABLE IF NOT EXISTS `pagamentos` (
+    `id` VARCHAR(36) NOT NULL PRIMARY KEY DEFAULT (UUID()),
+    `reserva_id` VARCHAR(36) NOT NULL UNIQUE,
+    `cupom_id` VARCHAR(36) NULL,
+    `valor_bruto` DECIMAL(10, 2) NOT NULL,
+    `valor_desconto` DECIMAL(10, 2) DEFAULT 0.00,
+    `valor_liquido` DECIMAL(10, 2) NOT NULL,
+    `metodo` ENUM('PIX', 'DEBITO', 'CREDITO', 'DINHEIRO') NOT NULL,
+    `status` ENUM('PENDENTE', 'APROVADO', 'RECUSADO', 'ESTORNADO') NOT NULL,
+    `data_hora` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (`reserva_id`) REFERENCES `reservas`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`cupom_id`) REFERENCES `cupons`(`id`) ON DELETE SET NULL
 );
 
--- =================================================================================
--- Tabela de Logs: Para auditoria de ações importantes no sistema.
--- =================================================================================
-CREATE TABLE log (
-    id_log INT AUTO_INCREMENT PRIMARY KEY,
-    id_usuario INT,
-    acao VARCHAR(100) NOT NULL,
-    descricao TEXT,
-    data_log TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario)
-        ON DELETE SET NULL
-        ON UPDATE CASCADE
+-- Tabela para avaliações de estacionamentos pelos usuários.
+CREATE TABLE IF NOT EXISTS `avaliacoes` (
+    `id` VARCHAR(36) NOT NULL PRIMARY KEY DEFAULT (UUID()),
+    `usuario_id` VARCHAR(36) NOT NULL,
+    `estabelecimento_id` VARCHAR(36) NOT NULL,
+    `nota` DECIMAL(2, 1) NOT NULL,
+    `comentario` TEXT,
+    `data_postagem` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (`usuario_id`) REFERENCES `usuarios`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`estabelecimento_id`) REFERENCES `estabelecimentos`(`id`) ON DELETE CASCADE
 );
 
--- =================================================================================
--- Tabela de mensagens: Para conversas entre o sistema.
--- =================================================================================
-CREATE TABLE mensagem (
-    id_mensagem INT AUTO_INCREMENT PRIMARY KEY,
-    id_remetente INT NOT NULL,
-    id_destinatario INT NOT NULL,
-    conteudo TEXT NOT NULL,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    lida BOOLEAN DEFAULT FALSE,
-    foi_editada BOOLEAN DEFAULT FALSE,
-    reply_to INT NULL,
-    
-    FOREIGN KEY (id_remetente) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
-    FOREIGN KEY (id_destinatario) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
-    FOREIGN KEY (reply_to) REFERENCES mensagem(id_mensagem) ON DELETE SET NULL
+-- Tabela de Logs de Ações importantes no sistema.
+CREATE TABLE IF NOT EXISTS `logs` (
+  `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+  `usuario_id` VARCHAR(36) NULL,
+  `acao` VARCHAR(255) NOT NULL,
+  `detalhes` JSON,
+  `ip_origem` VARCHAR(45) NULL,
+  `data_ocorrencia` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`usuario_id`) REFERENCES `usuarios`(`id`) ON DELETE SET NULL
 );
 
--- =================================================================================
--- tabela de Conversas: Para exibir as conversas 
--- =================================================================================
-CREATE TABLE conversa_oculta (
-    id_usuario INT NOT NULL,        
-    id_parceiro_chat INT NOT NULL, 
-    
-    PRIMARY KEY (id_usuario, id_parceiro_chat), -- Garante que a relação seja única.
-
-    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
-    FOREIGN KEY (id_parceiro_chat) REFERENCES usuario(id_usuario) ON DELETE CASCADE
-);
--- =================================================================================
--- Inserts
--- =================================================================================
-
-INSERT INTO usuario (nome, email, senha, papel) VALUES
-('Marcos da Silva', 'marcos@email.com', '$2b$10$qXMzRDjJU/b3piM8RNexA.B6iONreZ1XP9nc9DRNkhSODmJSk3cKW', 'PROPRIETARIO'),
-('Ana Costa', 'ana@email.com', '$2b$10$qXMzRDjJU/b3piM8RNexA.B6iONreZ1XP9nc9DRNkhSODmJSk3cKW', 'ADMINISTRADOR'),
-('Carla Joana', 'carla@email.com', '$2b$10$qXMzRDjJU/b3piM8RNexA.B6iONreZ1XP9nc9DRNkhSODmJSk3cKW', 'MOTORISTA'),
-('Pedro Almeida', 'pedro@email.com', '$2b$10$qXMzRDjJU/b3piM8RNexA.B6iONreZ1XP9nc9DRNkhSODmJSk3cKW', 'MOTORISTA'),
-('Bruno Mendes', 'bruno.func@email.com', '$2b$10$qXMzRDjJU/b3piM8RNexA.B6iONreZ1XP9nc9DRNkhSODmJSk3cKW', 'MOTORISTA'), -- Será funcionário
-('Sofia Lima', 'sofia@email.com', '$2b$10$qXMzRDjJU/b3piM8RNexA.B6iONreZ1XP9nc9DRNkhSODmJSk3cKW', 'MOTORISTA'),
-('Lucas Gabriel', 'lucas@email.com', '$2b$10$qXMzRDjJU/b3piM8RNexA.B6iONreZ1XP9nc9DRNkhSODmJSk3cKW', 'MOTORISTA'),
-('Juliana Andrade', 'juliana@email.com', '$2b$10$qXMzRDjJU/b3piM8RNexA.B6iONreZ1XP9nc9DRNkhSODmJSk3cKW', 'MOTORISTA'),
-('Fernando Pereira', 'fernando@email.com', '$2b$10$qXMzRDjJU/b3piM8RNexA.B6iONreZ1XP9nc9DRNkhSODmJSk3cKW', 'MOTORISTA'),
-('Beatriz Martins', 'beatriz@email.com', '$2b$10$qXMzRDjJU/b3piM8RNexA.B6iONreZ1XP9nc9DRNkhSODmJSk3cKW', 'MOTORISTA');
-
--- =================================================================================
--- INSERIR VEÍCULOS PARA OS MOTORISTAS
--- =================================================================================
-INSERT INTO veiculo (id_usuario, placa, marca, modelo, cor) VALUES
-(3, 'CAR-2025', 'Honda', 'Civic', 'Preto'),        -- Veículo 1 (Carla)
-(4, 'PED-2024', 'Fiat', 'Mobi', 'Branco'),        -- Veículo 2 (Pedro)
-(6, 'SOF-2023', 'Toyota', 'Yaris', 'Vermelho'),     -- Veículo 3 (Sofia)
-(7, 'LUC-2022', 'Chevrolet', 'Onix', 'Prata'),      -- Veículo 4 (Lucas)
-(8, 'JUL-2021', 'Hyundai', 'HB20', 'Cinza'),        -- Veículo 5 (Juliana)
-(9, 'FER-2020', 'Ford', 'Ka', 'Azul'),           -- Veículo 6 (Fernando)
-(10, 'BIA-2019', 'Renault', 'Kwid', 'Laranja');      -- Veículo 7 (Beatriz)
-
--- =================================================================================
--- INSERIR ESTACIONAMENTOS
--- =================================================================================
-INSERT INTO estacionamento (id_proprietario, nome, cnpj, cep, rua, numero, bairro, cidade, estado, endereco_completo, latitude, longitude) VALUES
-(1, 'Estacionamento Central', '11.111.111/0001-11', '01001-000', 'Praça da Sé', '100', 'Sé', 'São Paulo', 'SP', 'Praça da Sé, 100 - Sé, São Paulo - SP, 01001-000', -23.5507, -46.6343),
-(1, 'Estacionamento Paulista', '22.222.222/0001-22', '01311-200', 'Avenida Paulista', '1578', 'Bela Vista', 'São Paulo', 'SP', 'Avenida Paulista, 1578 - Bela Vista, São Paulo - SP, 01311-200', -23.5614, -46.6565);
-
--- =================================================================================
--- VINCULAR FUNCIONÁRIOS
--- =================================================================================
-INSERT INTO estacionamento_funcionario (id_estacionamento, id_usuario, permissao) VALUES 
-(1, 5, 'GESTOR'); -- Vincula Bruno Mendes ao Estacionamento Central do Marcos
-
--- =================================================================================
--- INSERIR PLANOS MENSAIS (MAIS DE 6 PARA TESTAR PAGINAÇÃO)
--- =================================================================================
-INSERT INTO plano_mensal (id_estacionamento, nome_plano, descricao, preco_mensal, ativo) VALUES
-    (1, 'Plano Diurno - Carro', 'Acesso das 8h às 18h, Seg a Sex.', 250.00, TRUE),      -- ID 1
-    (1, 'Plano Noturno - Carro', 'Acesso das 18h às 8h, todos os dias.', 180.00, TRUE),   -- ID 2
-    (1, 'Plano Premium 24h', 'Acesso total, 24h por dia, 7 dias por semana.', 400.00, TRUE), -- ID 3
-    (1, 'Plano Mensal - Moto', 'Acesso 24h exclusivo para motos.', 120.00, TRUE),           -- ID 4
-    (1, 'Plano Flex - 10 Diárias', 'Use 10 diárias no período de um mês.', 300.00, TRUE),      -- ID 5
-    (1, 'Plano Fim de Semana', 'Acesso de Sexta (18h) a Domingo (22h).', 150.00, TRUE), -- ID 6
-    (1, 'Plano Comercial', 'Acesso de Seg a Sex, das 8h às 20h.', 280.00, TRUE);           -- ID 7
-
--- =================================================================================
--- INSERIR CONTRATOS (MAIS DE 6 PARA TESTAR PAGINAÇÃO)
--- Faz com que "Plano Premium 24h" seja o mais popular
--- =================================================================================
-INSERT INTO contrato_mensalista (id_usuario, id_plano, id_veiculo, data_inicio, status) VALUES
-    -- 2 contratos para Plano Diurno
-    (3, 1, 1, '2025-10-01', 'ATIVO'), 
-    (4, 1, 2, '2025-10-15', 'ATIVO'),
-    -- 1 contrato cancelado
-    (3, 2, 1, '2025-08-01', 'CANCELADO'),
-    -- 5 contratos para Plano Premium (o mais popular)
-    (6, 3, 3, '2025-11-01', 'ATIVO'),
-    (7, 3, 4, '2025-11-02', 'ATIVO'),
-    (8, 3, 5, '2025-11-03', 'ATIVO'),
-    (9, 3, 6, '2025-11-04', 'ATIVO'),
-    (10, 3, 7, '2025-11-05', 'ATIVO');
-
-
-
-    ---
-
-    -- BD ANTERIOR APONTAVA SINTAXE INCORRETA, PARA EVITAR A SUBSTITUIÇÂO DE ALGO IMPORTANTE VOU ADICIONAR ABAIXO A VERSÂO QUE CORRIGI PODE SER QUE TENHA ALGUM ERRO POR ISSO SEPAREI
-
-    -- Cria o banco de dados caso ele não exista.
-CREATE DATABASE IF NOT EXISTS navi;
-
--- Seleciona o banco de dados para usar.
-USE navi;
-
--- ************************************************************
--- 🚨 ETAPA DE LIMPEZA
--- ************************************************************
-SET FOREIGN_KEY_CHECKS = 0;
-DROP TABLE IF EXISTS 
-    anexo_avaliacao, avaliacao, pagamento, cupom, reserva, vaga, 
-    politica_preco, contrato_mensalista, plano_mensal, veiculo, 
-    estacionamento_funcionario, estacionamento, usuario, log, 
-    mensagem, conversa_oculta;
-SET FOREIGN_KEY_CHECKS = 1;
-
-
--- =================================================================================
--- 1. CRIAÇÃO DE TODAS AS TABELAS
--- =================================================================================
-
-CREATE TABLE usuario (
-    id_usuario INT AUTO_INCREMENT PRIMARY KEY,
-    nome VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
-    senha VARCHAR(255) NOT NULL,
-    telefone VARCHAR(20),
-    url_foto_perfil VARCHAR(255),
-    papel ENUM('ADMINISTRADOR', 'PROPRIETARIO', 'FUNCIONARIO', 'MOTORISTA') NOT NULL,
-    data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    ativo BOOLEAN DEFAULT TRUE,
-    resetToken VARCHAR(255) NULL UNIQUE,
-    resetTokenExpires DATETIME NULL
+-- Tabela de Notificações para o Usuário 
+CREATE TABLE IF NOT EXISTS `notificacoes` (
+    `id` VARCHAR(36) NOT NULL PRIMARY KEY DEFAULT (UUID()),
+    `usuario_id` VARCHAR(36) NOT NULL COMMENT 'Para quem é a notificação',
+    `autor_acao_nome` VARCHAR(255) NOT NULL COMMENT 'Nome de quem realizou a ação',
+    `mensagem` VARCHAR(255) NOT NULL,
+    `link` VARCHAR(255) NULL COMMENT 'Link para a página relevante (opcional)',
+    `lida` BOOLEAN NOT NULL DEFAULT FALSE,
+    `data_criacao` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (`usuario_id`) REFERENCES `usuarios`(`id`) ON DELETE CASCADE
 );
 
-CREATE TABLE estacionamento (
-    id_estacionamento INT AUTO_INCREMENT PRIMARY KEY,
-    id_proprietario INT NOT NULL,
-    nome VARCHAR(255) NOT NULL,
-    ativo BOOLEAN DEFAULT TRUE,
-    cnpj VARCHAR(18) NOT NULL UNIQUE,
-    cep VARCHAR(9) NOT NULL,
-    rua VARCHAR(255) NOT NULL,
-    numero VARCHAR(20) NOT NULL,
-    bairro VARCHAR(100) NOT NULL,
-    cidade VARCHAR(100) NOT NULL,
-    estado VARCHAR(2) NOT NULL,   
-    endereco_completo VARCHAR(500) NOT NULL, 
-    latitude DECIMAL(10, 8) NOT NULL,
-    longitude DECIMAL(10, 8) NOT NULL,
-    url_foto_principal VARCHAR(255),
-    horario_abertura TIME,
-    horario_fechamento TIME,
-    dias_funcionamento VARCHAR(100),
-    data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (id_proprietario) REFERENCES usuario(id_usuario) ON DELETE RESTRICT ON UPDATE CASCADE,
-    UNIQUE KEY endereco_unico (cep, numero),
-    UNIQUE KEY localizacao_unica (latitude, longitude)
+-- Adicionar esta tabela ao seu schema.sql
+
+CREATE TABLE IF NOT EXISTS `caixa_sessoes` (
+  `id` VARCHAR(36) NOT NULL PRIMARY KEY DEFAULT (UUID()),
+  `estabelecimento_id` VARCHAR(36) NOT NULL,
+  `usuario_id` VARCHAR(36) NOT NULL COMMENT 'ID do funcionário que operou o caixa',
+  `data_abertura` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `data_fechamento` TIMESTAMP NULL,
+  `valor_abertura` DECIMAL(10, 2) NOT NULL,
+  `valor_fechamento` DECIMAL(10, 2) NULL,
+  `observacoes` TEXT NULL,
+  `status` ENUM('ABERTO', 'FECHADO') NOT NULL DEFAULT 'ABERTO',
+  FOREIGN KEY (`estabelecimento_id`) REFERENCES `estabelecimentos`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`usuario_id`) REFERENCES `usuarios`(`id`) ON DELETE CASCADE
 );
 
--- [FIX] Tabela 'veiculo' estava em falta
-CREATE TABLE veiculo (
-    id_veiculo INT AUTO_INCREMENT PRIMARY KEY,
-    id_usuario INT NOT NULL,
-    placa VARCHAR(10) NOT NULL UNIQUE,
-    marca VARCHAR(50) NOT NULL,
-    modelo VARCHAR(50) NOT NULL,
-    cor VARCHAR(30) NOT NULL,
-    url_foto_placa VARCHAR(255),
-    apelido VARCHAR(50),
-    ativo BOOLEAN DEFAULT TRUE,
-    data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+select * from notificacoes;
+select * from usuarios;
+select * from logs;
+-- ================================================================
+-- PASSO 2: INSERÇÃO COMPLETA E ORDENADA DOS DADOS DE TESTE
+-- ================================================================
+SET @senha_padrao = '$2b$10$5c.zMMqbKgTUq1rborporePge43qJFwsCt/Ct90OV1Hp1cdY.2kGO'; -- 12345678
 
-    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE
-);
+-- Seção 2.1: USUÁRIOS
+-- (Independentes de outras tabelas, devem vir primeiro)
+-- ----------------------------------------------------------------
+-- Usuários Padrão
+INSERT INTO `usuarios` (`id`, `nome`, `email`, `senha`, `papel`, `ativo`) VALUES
+('0a9a6b1a-3e8c-4f0e-9d2a-8c7c7f9a8b1b', 'Admin do Sistema', 'adm@email.com', @senha_padrao, 'ADMINISTRADOR', true),
+('1b9a6b1a-3e8c-4f0e-9d2a-8c7c7f9a8b1c', 'Carlos Proprietário', 'proprietario@email.com', @senha_padrao, 'PROPRIETARIO', true),
+('func-beatriz-gestora', 'Beatriz Funcionária', 'funcionario@email.com', @senha_padrao, 'FUNCIONARIO', true);
 
--- [FIX] Tabela 'plano_mensal' estava em falta
-CREATE TABLE plano_mensal (
-    id_plano INT AUTO_INCREMENT PRIMARY KEY,
-    id_estacionamento INT NOT NULL,
-    nome_plano VARCHAR(100) NOT NULL, -- Ex: "Plano Diurno Moto", "Plano 24h Carro"
-    descricao TEXT,
-    preco_mensal DECIMAL(10, 2) NOT NULL,
-    ativo BOOLEAN DEFAULT TRUE, -- Permite desativar um plano sem apagar os contratos existentes.
+-- 12 Novos Clientes (com role placeholder 'PROPRIETARIO')
+INSERT INTO `usuarios` (`id`, `nome`, `email`, `senha`, `papel`) VALUES
+('cli-01', 'Lucas Pereira', 'lucas.p@email.com', @senha_padrao, 'PROPRIETARIO'), ('cli-02', 'Juliana Santos', 'juliana.s@email.com', @senha_padrao, 'PROPRIETARIO'), ('cli-03', 'Rafael Oliveira', 'rafael.o@email.com', @senha_padrao, 'PROPRIETARIO'), ('cli-04', 'Camila Costa', 'camila.c@email.com', @senha_padrao, 'PROPRIETARIO'), ('cli-05', 'Fernando Martins', 'fernando.m@email.com', @senha_padrao, 'PROPRIETARIO'), ('cli-06', 'Beatriz Almeida', 'beatriz.a@email.com', @senha_padrao, 'PROPRIETARIO'),
+('cli-07', 'Tiago Lima', 'tiago.l@email.com', @senha_padrao, 'PROPRIETARIO'), ('cli-08', 'Sofia Rocha', 'sofia.r@email.com', @senha_padrao, 'PROPRIETARIO'), ('cli-09', 'Gabriel Mendes', 'gabriel.m@email.com', @senha_padrao, 'PROPRIETARIO'), ('cli-10', 'Laura Ferreira', 'laura.f@email.com', @senha_padrao, 'PROPRIETARIO'), ('cli-11', 'Matheus Alves', 'matheus.a@email.com', @senha_padrao, 'PROPRIETARIO'), ('cli-12', 'Isabela Gomes', 'isabela.g@email.com', @senha_padrao, 'PROPRIETARIO');
 
-    FOREIGN KEY (id_estacionamento) REFERENCES estacionamento(id_estacionamento) ON DELETE CASCADE
-);
+-- 12 Novos Funcionários
+INSERT INTO `usuarios` (`id`, `nome`, `email`, `senha`, `papel`) VALUES
+('func-p1', 'André Souza', 'andre.func@email.com', @senha_padrao, 'FUNCIONARIO'), ('func-p2', 'Bianca Lima', 'bianca.func@email.com', @senha_padrao, 'FUNCIONARIO'), ('func-p3', 'Carlos Rocha', 'carlos.func@email.com', @senha_padrao, 'FUNCIONARIO'), ('func-p4', 'Daniela Alves', 'daniela.func@email.com', @senha_padrao, 'FUNCIONARIO'), ('func-p5', 'Eduardo Neves', 'eduardo.func@email.com', @senha_padrao, 'FUNCIONARIO'), ('func-p6', 'Fabiana Gomes', 'fabiana.func@email.com', @senha_padrao, 'FUNCIONARIO'),
+('func-fl1', 'Gustavo Pinto', 'gustavo.func@email.com', @senha_padrao, 'FUNCIONARIO'), ('func-fl2', 'Helena Dias', 'helena.func@email.com', @senha_padrao, 'FUNCIONARIO'), ('func-fl3', 'Igor Barros', 'igor.func@email.com', @senha_padrao, 'FUNCIONARIO'), ('func-fl4', 'Larissa Farias', 'larissa.func@email.com', @senha_padrao, 'FUNCIONARIO'), ('func-fl5', 'Marcos Andrade', 'marcos.func@email.com', @senha_padrao, 'FUNCIONARIO'), ('func-fl6', 'Natália Ribeiro', 'natalia.func@email.com', @senha_padrao, 'FUNCIONARIO');
 
--- [FIX] Tabela 'estacionamento_funcionario' estava em falta
-CREATE TABLE estacionamento_funcionario (
-    id_estacionamento INT NOT NULL,
-    id_usuario INT NOT NULL,
-    permissao ENUM('GESTOR', 'OPERADOR') NOT NULL, -- GESTOR pode ver relatórios, OPERADOR apenas check-in/out.
-    data_admissao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+-- Seção 2.2: ESTACIONAMENTOS
+-- (Dependem de `usuarios`, devem vir depois)
+-- ----------------------------------------------------------------
+INSERT INTO `estabelecimentos` (`id`, `proprietario_id`, `nome`, `cnpj`, `cep`, `rua`, `numero`, `bairro`, `cidade`, `estado`, `latitude`, `longitude`, `ativo`, `horario_abertura`, `horario_fechamento`, `dias_funcionamento`) VALUES
+('estac-paulista', '1b9a6b1a-3e8c-4f0e-9d2a-8c7c7f9a8b1c', 'Estacionamento Paulista', '22.222.222/0001-22', '01311-200', 'Avenida Paulista', '1578', 'Bela Vista', 'São Paulo', 'SP', -23.5614, -46.6565, true, '07:00:00', '23:00:00', 'Seg-Sab'),
+('estac-faria-lima', '1b9a6b1a-3e8c-4f0e-9d2a-8c7c7f9a8b1c', 'Estacionamento Faria Lima', '33.333.333/0001-33', '05425-070', 'Rua Doutor Rubéns Gomes Bueno', '691', 'Várzea de Baixo', 'São Paulo', 'SP', -23.6231, -46.7025, true, '06:00:00', '22:00:00', 'Seg-Sex');
+SET @estac_paulista_id = 'estac-paulista';
+SET @estac_farialima_id = 'estac-faria-lima';
 
-    PRIMARY KEY (id_estacionamento, id_usuario), -- Garante que um usuário só tenha um papel por estacionamento.
-    FOREIGN KEY (id_estacionamento) REFERENCES estacionamento(id_estacionamento) ON DELETE CASCADE,
-    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE
-);
+-- Seção 2.3: VINCULANDO FUNCIONÁRIOS AOS ESTACIONAMENTOS
+-- (Dependem de `usuarios` e `estabelecimentos`)
+-- ----------------------------------------------------------------
+-- 6 Funcionários para Paulista
+INSERT INTO `estacionamento_funcionarios` (`estabelecimento_id`, `usuario_id`, `permissao`) VALUES
+(@estac_paulista_id, 'func-beatriz-gestora', 'GESTOR'), 
+(@estac_paulista_id, 'func-p1', 'OPERADOR'), (@estac_paulista_id, 'func-p2', 'OPERADOR'), (@estac_paulista_id, 'func-p3', 'OPERADOR'), (@estac_paulista_id, 'func-p4', 'OPERADOR'), (@estac_paulista_id, 'func-p5', 'OPERADOR');
+-- 6 Funcionários para Faria Lima
+INSERT INTO `estacionamento_funcionarios` (`estabelecimento_id`, `usuario_id`, `permissao`) VALUES
+(@estac_farialima_id, 'func-p6', 'GESTOR'), 
+(@estac_farialima_id, 'func-fl1', 'OPERADOR'), (@estac_farialima_id, 'func-fl2', 'OPERADOR'), (@estac_farialima_id, 'func-fl3', 'OPERADOR'), (@estac_farialima_id, 'func-fl4', 'OPERADOR'), (@estac_farialima_id, 'func-fl5', 'OPERADOR');
 
-CREATE TABLE contrato_mensalista (
-    id_contrato INT AUTO_INCREMENT PRIMARY KEY,
-    id_usuario INT NOT NULL,
-    id_plano INT NOT NULL,
-    id_veiculo INT NOT NULL,
-    data_inicio DATE NOT NULL,
-    data_fim DATE, 
-    status ENUM('ATIVO', 'INATIVO', 'CANCELADO') NOT NULL,
+-- Seção 2.4: VAGAS
+-- (Dependem de `estabelecimentos`)
+-- ----------------------------------------------------------------
+INSERT INTO `vagas` (id, estabelecimento_id, identificador, tipo_vaga) VALUES
+('vaga-res-p1', @estac_paulista_id, 'R01', 'CARRO'), ('vaga-res-p2', @estac_paulista_id, 'R02', 'ELETRICO'), ('vaga-res-p3', @estac_paulista_id, 'R03', 'CARRO'), ('vaga-res-p4', @estac_paulista_id, 'R04', 'PCD'), ('vaga-res-p5', @estac_paulista_id, 'R05', 'MOTO'), ('vaga-res-p6', @estac_paulista_id, 'R06', 'CARRO'),
+('vaga-res-fl1', @estac_farialima_id, 'R01', 'CARRO'), ('vaga-res-fl2', @estac_farialima_id, 'R02', 'IDOSO'), ('vaga-res-fl3', @estac_farialima_id, 'R03', 'MOTO'), ('vaga-res-fl4', @estac_farialima_id, 'R04', 'CARRO'), ('vaga-res-fl5', @estac_farialima_id, 'R05', 'CARRO'), ('vaga-res-fl6', @estac_farialima_id, 'R06', 'PCD');
 
-    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
-    FOREIGN KEY (id_plano) REFERENCES plano_mensal(id_plano) ON DELETE RESTRICT, 
-    FOREIGN KEY (id_veiculo) REFERENCES veiculo(id_veiculo) ON DELETE CASCADE
-);
+-- Seção 2.5: VEÍCULOS
+-- (Dependem de `usuarios`)
+-- ----------------------------------------------------------------
+INSERT INTO `veiculos` (id, usuario_id, placa, marca, modelo, cor) SELECT UUID(), id, CONCAT(SUBSTRING(UUID(), 1, 3), '-', LPAD(FLOOR(RAND() * 10000), 4, '0')), 'Marca Teste', 'Modelo Teste', 'Cor Teste' FROM `usuarios` WHERE `email` LIKE '%.%@email.com';
 
-CREATE TABLE politica_preco (
-    id_politica_preco INT AUTO_INCREMENT PRIMARY KEY,
-    id_estacionamento INT NOT NULL,
-    descricao VARCHAR(100) NOT NULL,
-    preco_primeira_hora DECIMAL(10, 2) DEFAULT 0.00,
-    preco_horas_adicionais DECIMAL(10, 2) DEFAULT 0.00,
-    preco_diaria DECIMAL(10, 2) DEFAULT 0.00,
-    ativo BOOLEAN DEFAULT TRUE,
-    
-    FOREIGN KEY (id_estacionamento) REFERENCES estacionamento(id_estacionamento)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE
-);
+-- Seção 2.6: PLANOS, RESERVAS E AVALIAÇÕES (DADOS FINAIS)
+-- ----------------------------------------------------------------
+-- Planos e Políticas
+INSERT INTO `politicas_preco` (id, estabelecimento_id, nome, preco_primeira_hora, preco_horas_adicionais, preco_diaria) VALUES (UUID(), @estac_paulista_id, 'Tarifa Padrão', 18.00, 10.00, 75.00), (UUID(), @estac_paulista_id, 'Tarifa de Moto', 9.00, 5.00, 35.00);
+INSERT INTO `planos_mensais` (`id`, `estabelecimento_id`, `nome_plano`, `descricao`, `preco_mensal`, `popular`) VALUES ('plano-paulista-diurno', @estac_paulista_id, 'Plano Diurno Completo', 'Acesso 8h-18h, Seg-Sex.', 350.00, true), ('plano-paulista-247', @estac_paulista_id, 'Plano 24/7', 'Acesso total.', 450.00, false), ('plano-fl-corp', @estac_farialima_id, 'Plano Corporativo FL', 'Acesso 24/7 para empresas.', 400.00, true);
+SET @plano_paulista_id = 'plano-paulista-diurno';
+SET @plano_farialima_id = 'plano-fl-corp';
 
-CREATE TABLE vaga (
-    id_vaga INT AUTO_INCREMENT PRIMARY KEY,
-    id_estacionamento INT NOT NULL,
-    identificador VARCHAR(20) NOT NULL,
-    tipo_vaga ENUM('PADRAO', 'PCD', 'IDOSO', 'ELETRICO', 'MOTO') DEFAULT 'PADRAO',
-    status ENUM('LIVRE', 'OCUPADA', 'RESERVADA', 'MANUTENCAO') DEFAULT 'LIVRE',
-    
-    FOREIGN KEY (id_estacionamento) REFERENCES estacionamento(id_estacionamento)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE,
-        
-    UNIQUE (id_estacionamento, identificador)
-);
+-- 6 Contratos para Paulista
+INSERT INTO `contratos_mensalistas` (id, usuario_id, plano_id, veiculo_id, data_inicio, status)
+SELECT UUID(), u.id, @plano_paulista_id, v.id, CURDATE() - INTERVAL FLOOR(RAND() * 30) DAY, IF(RAND() > 0.8, 'CANCELADO', 'ATIVO') FROM `usuarios` u JOIN `veiculos` v ON u.id = v.usuario_id WHERE u.email IN ('lucas.p@email.com', 'juliana.s@email.com', 'rafael.o@email.com', 'camila.c@email.com', 'fernando.m@email.com', 'beatriz.a@email.com');
+-- 6 Contratos para Faria Lima
+INSERT INTO `contratos_mensalistas` (id, usuario_id, plano_id, veiculo_id, data_inicio, status)
+SELECT UUID(), u.id, @plano_farialima_id, v.id, CURDATE() - INTERVAL FLOOR(RAND() * 30) DAY, IF(RAND() > 0.8, 'CANCELADO', 'ATIVO') FROM `usuarios` u JOIN `veiculos` v ON u.id = v.usuario_id WHERE u.email IN ('tiago.l@email.com', 'sofia.r@email.com', 'gabriel.m@email.com', 'laura.f@email.com', 'matheus.a@email.com', 'isabela.g@email.com');
 
-CREATE TABLE reserva (
-    id_reserva INT AUTO_INCREMENT PRIMARY KEY,
-    id_usuario INT NOT NULL,
-    id_vaga INT NOT NULL,
-    id_veiculo INT NULL,
-    codigo_confirmacao VARCHAR(100) UNIQUE,
-    data_hora_inicio TIMESTAMP NOT NULL,
-    data_hora_fim TIMESTAMP NULL, 
-    status ENUM('ATIVA', 'CONCLUIDA', 'CANCELADA', 'EXPIRADA') NOT NULL,
-    
-    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE,
-    FOREIGN KEY (id_vaga) REFERENCES vaga(id_vaga)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE,
-    FOREIGN KEY (id_veiculo) REFERENCES veiculo(id_veiculo)
-        ON DELETE SET NULL
-        ON UPDATE CASCADE
-);
+-- 6 Reservas para Paulista e 6 para Faria Lima
+INSERT INTO `reservas` (id, usuario_id, vaga_id, status) VALUES
+(UUID(), (SELECT id from usuarios where email = 'lucas.p@email.com'), 'vaga-res-p1', 'ATIVA'), (UUID(), (SELECT id from usuarios where email = 'juliana.s@email.com'), 'vaga-res-p2', 'ATIVA'), (UUID(), (SELECT id from usuarios where email = 'rafael.o@email.com'), 'vaga-res-p3', 'ATIVA'), (UUID(), (SELECT id from usuarios where email = 'camila.c@email.com'), 'vaga-res-p4', 'ATIVA'), (UUID(), (SELECT id from usuarios where email = 'fernando.m@email.com'), 'vaga-res-p5', 'ATIVA'), (UUID(), (SELECT id from usuarios where email = 'beatriz.a@email.com'), 'vaga-res-p6', 'ATIVA'),
+(UUID(), (SELECT id from usuarios where email = 'tiago.l@email.com'), 'vaga-res-fl1', 'ATIVA'), (UUID(), (SELECT id from usuarios where email = 'sofia.r@email.com'), 'vaga-res-fl2', 'ATIVA'), (UUID(), (SELECT id from usuarios where email = 'gabriel.m@email.com'), 'vaga-res-fl3', 'ATIVA'), (UUID(), (SELECT id from usuarios where email = 'laura.f@email.com'), 'vaga-res-fl4', 'ATIVA'), (UUID(), (SELECT id from usuarios where email = 'matheus.a@email.com'), 'vaga-res-fl5', 'ATIVA'), (UUID(), (SELECT id from usuarios where email = 'isabela.g@email.com'), 'vaga-res-fl6', 'ATIVA');
 
-CREATE TABLE cupom (
-    id_cupom INT AUTO_INCREMENT PRIMARY KEY,
-    codigo VARCHAR(50) NOT NULL UNIQUE,
-    descricao TEXT,
-    tipo_desconto ENUM('PERCENTUAL', 'FIXO') NOT NULL,
-    valor DECIMAL(10, 2) NOT NULL,
-    data_validade DATE NOT NULL,
-    usos_maximos INT DEFAULT 1,
-    usos_atuais INT DEFAULT 0,
-    ativo BOOLEAN DEFAULT TRUE
-);
+select * from usuarios;
+select * from estabelecimentos;
 
-CREATE TABLE pagamento (
-    id_pagamento INT AUTO_INCREMENT PRIMARY KEY,
-    id_reserva INT NOT NULL UNIQUE,
-    id_cupom INT NULL, 
-    valor_bruto DECIMAL(10, 2) NOT NULL,
-    valor_desconto DECIMAL(10, 2) DEFAULT 0.00,
-    valor_liquido DECIMAL(10, 2) NOT NULL,
-    metodo ENUM('PIX', 'DEBITO', 'CREDITO', 'DINHEIRO') NOT NULL,
-    status ENUM('PENDENTE', 'APROVADO', 'RECUSADO', 'ESTORNADO') NOT NULL,
-    url_recibo VARCHAR(255),
-    data_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (id_reserva) REFERENCES reserva(id_reserva) ON DELETE CASCADE,
-    FOREIGN KEY (id_cupom) REFERENCES cupom(id_cupom) ON DELETE SET NULL
-);
+-- 1. Defina o ID do estacionamento que você quer pesquisar.
+-- Use 'estac-paulista' ou 'estac-faria-lima'.
+SET @estacionamento_id_pesquisa = 'estac-paulista';
 
-CREATE TABLE avaliacao (
-    id_avaliacao INT AUTO_INCREMENT PRIMARY KEY,
-    id_usuario INT NOT NULL,
-    id_estacionamento INT NOT NULL,
-    nota DECIMAL(2, 1) NOT NULL,
-    comentario TEXT,
-    data_postagem TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
-    FOREIGN KEY (id_estacionamento) REFERENCES estacionamento(id_estacionamento) ON DELETE CASCADE
-);
+-- 2. Rode a consulta.
+-- Ela une a tabela de vínculo (estacionamento_funcionarios) com a de usuários
+-- para buscar o nome e a permissão dos funcionários.
+SELECT 
+    u.nome,
+    ef.permissao AS cargo
+FROM 
+    estacionamento_funcionarios AS ef
+JOIN 
+    usuarios AS u ON ef.usuario_id = u.id
+WHERE 
+    ef.estabelecimento_id = @estacionamento_id_pesquisa
+ORDER BY
+    u.nome ASC;
 
-CREATE TABLE anexo_avaliacao (
-    id_anexo INT AUTO_INCREMENT PRIMARY KEY,
-    id_avaliacao INT NOT NULL,
-    tipo_anexo ENUM('IMAGEM', 'VIDEO') DEFAULT 'IMAGEM',
-    url_anexo VARCHAR(255) NOT NULL,
-
-    FOREIGN KEY (id_avaliacao) REFERENCES avaliacao(id_avaliacao) ON DELETE CASCADE
-);
-
-CREATE TABLE log (
-    id_log INT AUTO_INCREMENT PRIMARY KEY,
-    id_usuario INT,
-    acao VARCHAR(100) NOT NULL,
-    descricao TEXT,
-    data_log TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario)
-        ON DELETE SET NULL
-        ON UPDATE CASCADE
-);
-
-CREATE TABLE mensagem (
-    id_mensagem INT AUTO_INCREMENT PRIMARY KEY,
-    id_remetente INT NOT NULL,
-    id_destinatario INT NOT NULL,
-    conteudo TEXT NOT NULL,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    lida BOOLEAN DEFAULT FALSE,
-    foi_editada BOOLEAN DEFAULT FALSE,
-    reply_to INT NULL,
-    
-    FOREIGN KEY (id_remetente) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
-    FOREIGN KEY (id_destinatario) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
-    FOREIGN KEY (reply_to) REFERENCES mensagem(id_mensagem) ON DELETE SET NULL
-);
-
-CREATE TABLE conversa_oculta (
-    id_usuario INT NOT NULL,        
-    id_parceiro_chat INT NOT NULL, 
-    
-    PRIMARY KEY (id_usuario, id_parceiro_chat), 
-
-    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
-    FOREIGN KEY (id_parceiro_chat) REFERENCES usuario(id_usuario) ON DELETE CASCADE
-);
-
-
--- =================================================================================
--- 2. INSERTS DE DADOS
--- =================================================================================
-
-SET @senha_hash = '$2b$10$qXMzRDjJU/b3piM8RNexA.B6iONreZ1XP9nc9DRNkhSODmJSk3cKW'; 
-
--- INSERTS DE USUÁRIOS (7 Usuários)
-INSERT IGNORE INTO usuario (id_usuario, nome, email, senha, papel, ativo) VALUES
-(1, 'Admin Master', 'admin@navi.com', @senha_hash, 'ADMINISTRADOR', TRUE),
-(2, 'Marcos Proprietario', 'marcos@prop.com', @senha_hash, 'PROPRIETARIO', TRUE),
-(3, 'Ana Proprietaria', 'ana@prop.com', @senha_hash, 'PROPRIETARIO', TRUE),
-(4, 'Pedro Motorista', 'pedro@motor.com', @senha_hash, 'MOTORISTA', TRUE),
-(5, 'Carla Motorista', 'carla@motor.com', @senha_hash, 'MOTORISTA', TRUE),
-(6, 'Joao Funcionario', 'joao@func.com', @senha_hash, 'FUNCIONARIO', TRUE),
-(7, 'Usuario Inativo', 'inativo@user.com', @senha_hash, 'MOTORISTA', FALSE);
-
--- INSERTS DE ESTACIONAMENTOS (7 Estacionamentos)
--- [FIX] Corrigido o erro de sintaxe aqui. O 'INSERT' agora termina com ';'.
-INSERT INTO estacionamento 
-    (id_proprietario, nome, cnpj, cep, rua, numero, bairro, cidade, estado, endereco_completo, latitude, longitude) 
-VALUES
-    (2, 'Estacionamento Central', '11.111.111/0001-11', '01001-000', 'Praça da Sé', '100', 'Sé', 'São Paulo', 'SP', 'Praça da Sé, 100 - Sé, São Paulo - SP, 01001-000', -23.5507, -46.6343), -- 1
-    (2, 'Estacionamento Paulista', '22.222.222/0001-22', '01311-200', 'Avenida Paulista', '1578', 'Bela Vista', 'São Paulo', 'SP', 'Avenida Paulista, 1578 - Bela Vista, São Paulo - SP, 01311-200', -23.5614, -46.6565), -- 2
-    (3, 'Estacionamento Pinheiros', '33.333.333/0001-33', '05425-070', 'Rua dos Pinheiros', '500', 'Pinheiros', 'São Paulo', 'SP', 'Rua dos Pinheiros, 500 - Pinheiros, São Paulo - SP, 05425-070', -23.5677, -46.6953), -- 3
-    (3, 'Estacionamento Ibirapuera', '44.444.444/0001-44', '04003-010', 'Rua Manoel da Nóbrega', '200', 'Vila Mariana', 'São Paulo', 'SP', 'Rua Manoel da Nóbrega, 200 - Vila Mariana', -23.5796, -46.6588), -- 4
-    (1, 'Estacionamento Admin', '55.555.555/0001-55', '01046-010', 'Avenida Ipiranga', '120', 'República', 'São Paulo', 'SP', 'Avenida Ipiranga, 120 - República', -23.5458, -46.6366), -- 5
-    (2, 'Estacionamento Desativado', '66.666.666/0001-66', '03107-000', 'Rua da Mooca', '400', 'Mooca', 'São Paulo', 'SP', 'Rua da Mooca, 400 - Mooca', -23.5583, -46.6111), -- 6
-    (3, 'Estacionamento Lapa', '77.777.777/0001-77', '05073-010', 'Rua Clélia', '300', 'Lapa', 'São Paulo', 'SP', 'Rua Clélia, 300 - Lapa', -23.5262, -46.6919); -- 7
-
--- INSERTS DOS USUÁRIOS (Bloco 2)
-INSERT INTO usuario (nome, email, senha, papel) VALUES
-('Marcos da Silva', 'marcos@email.com', '$2b$10$qXMzRDjJU/b3piM8RNexA.B6iONreZ1XP9nc9DRNkhSODmJSk3cKW', 'PROPRIETARIO'),
-('Ana Costa', 'ana@email.com', '$2b$10$qXMzRDjJU/b3piM8RNexA.B6iONreZ1XP9nc9DRNkhSODmJSk3cKW', 'ADMINISTRADOR'),
-('Carla Joana', 'carla@email.com', '$2b$10$qXMzRDjJU/b3piM8RNexA.B6iONreZ1XP9nc9DRNkhSODmJSk3cKW', 'MOTORISTA'),
-('Pedro Almeida', 'pedro@email.com', '$2b$10$qXMzRDjJU/b3piM8RNexA.B6iONreZ1XP9nc9DRNkhSODmJSk3cKW', 'MOTORISTA'),
-('Bruno Mendes', 'bruno.func@email.com', '$2b$10$qXMzRDjJU/b3piM8RNexA.B6iONreZ1XP9nc9DRNkhSODmJSk3cKW', 'MOTORISTA'), -- Será funcionário
-('Sofia Lima', 'sofia@email.com', '$2b$10$qXMzRDjJU/b3piM8RNexA.B6iONreZ1XP9nc9DRNkhSODmJSk3cKW', 'MOTORISTA'),
-('Lucas Gabriel', 'lucas@email.com', '$2b$10$qXMzRDjJU/b3piM8RNexA.B6iONreZ1XP9nc9DRNkhSODmJSk3cKW', 'MOTORISTA'),
-('Juliana Andrade', 'juliana@email.com', '$2b$10$qXMzRDjJU/b3piM8RNexA.B6iONreZ1XP9nc9DRNkhSODmJSk3cKW', 'MOTORISTA'),
-('Fernando Pereira', 'fernando@email.com', '$2b$10$qXMzRDjJU/b3piM8RNexA.B6iONreZ1XP9nc9DRNkhSODmJSk3cKW', 'MOTORISTA'),
-('Beatriz Martins', 'beatriz@email.com', '$2b$10$qXMzRDjJU/b3piM8RNexA.B6iONreZ1XP9nc9DRNkhSODmJSk3cKW', 'MOTORISTA');
-
--- INSERIR VEÍCULOS
-INSERT INTO veiculo (id_usuario, placa, marca, modelo, cor) VALUES
-(3, 'CAR-2025', 'Honda', 'Civic', 'Preto'),         -- Veículo 1 (Carla)
-(4, 'PED-2024', 'Fiat', 'Mobi', 'Branco'),         -- Veículo 2 (Pedro)
-(6, 'SOF-2023', 'Toyota', 'Yaris', 'Vermelho'),     -- Veículo 3 (Sofia)
-(7, 'LUC-2022', 'Chevrolet', 'Onix', 'Prata'),      -- Veículo 4 (Lucas)
-(8, 'JUL-2021', 'Hyundai', 'HB20', 'Cinza'),        -- Veículo 5 (Juliana)
-(9, 'FER-2020', 'Ford', 'Ka', 'Azul'),           -- Veículo 6 (Fernando)
-(10, 'BIA-2019', 'Renault', 'Kwid', 'Laranja');     -- Veículo 7 (Beatriz)
-
--- INSERIR ESTACIONAMENTOS (Bloco 2)
-INSERT INTO estacionamento (id_proprietario, nome, cnpj, cep, rua, numero, bairro, cidade, estado, endereco_completo, latitude, longitude) VALUES
-(1, 'Estacionamento Central', '11.231.111/0001-11', '01321-000', 'Praça da Sé', '100', 'Sé', 'São Paulo', 'SP', 'Praça da Sé, 100 - Sé, São Paulo - SP, 01001-000', -23.5507, -46.6353),
-(1, 'Estacionamento Paulista', '22.229.222/0001-22', '01391-200', 'Avenida Paulista', '1578', 'Bela Vista', 'São Paulo', 'SP', 'Avenida Paulista, 1578 - Bela Vista, São Paulo - SP, 01311-200', -23.5614, -46.6865);
-
--- VINCULAR FUNCIONÁRIOS
-INSERT INTO estacionamento_funcionario (id_estacionamento, id_usuario, permissao) VALUES 
-(1, 5, 'GESTOR'); -- Vincula Bruno Mendes ao Estacionamento Central do Marcos
-
--- INSERIR PLANOS MENSAIS
-INSERT INTO plano_mensal (id_estacionamento, nome_plano, descricao, preco_mensal, ativo) VALUES
-    (1, 'Plano Diurno - Carro', 'Acesso das 8h às 18h, Seg a Sex.', 250.00, TRUE),     -- ID 1
-    (1, 'Plano Noturno - Carro', 'Acesso das 18h às 8h, todos os dias.', 180.00, TRUE),  -- ID 2
-    (1, 'Plano Premium 24h', 'Acesso total, 24h por dia, 7 dias por semana.', 400.00, TRUE), -- ID 3
-    (1, 'Plano Mensal - Moto', 'Acesso 24h exclusivo para motos.', 120.00, TRUE),         -- ID 4
-    (1, 'Plano Flex - 10 Diárias', 'Use 10 diárias no período de um mês.', 300.00, TRUE),    -- ID 5
-    (1, 'Plano Fim de Semana', 'Acesso de Sexta (18h) a Domingo (22h).', 150.00, TRUE), -- ID 6
-    (1, 'Plano Comercial', 'Acesso de Seg a Sex, das 8h às 20h.', 280.00, TRUE);         -- ID 7
-
--- INSERIR CONTRATOS
-INSERT INTO contrato_mensalista (id_usuario, id_plano, id_veiculo, data_inicio, status) VALUES
-    -- 2 contratos para Plano Diurno
-    (3, 1, 1, '2025-10-01', 'ATIVO'), 
-    (4, 1, 2, '2025-10-15', 'ATIVO'),
-    -- 1 contrato cancelado
-    (3, 2, 1, '2025-08-01', 'CANCELADO'),
-    -- 5 contratos para Plano Premium (o mais popular)
-    (6, 3, 3, '2025-11-01', 'ATIVO'),
-    (7, 3, 4, '2025-11-02', 'ATIVO'),
-    (8, 3, 5, '2025-11-03', 'ATIVO'),
-    (9, 3, 6, '2025-11-04', 'ATIVO'),
-    (10, 3, 7, '2025-11-05', 'ATIVO');
-    
-    SELECT * FROM usuario;
+-- 6 Avaliações para Paulista
+INSERT INTO `avaliacoes` (id, usuario_id, estabelecimento_id, nota, comentario) SELECT UUID(), id, @estac_paulista_id, ROUND(3 + (RAND() * 2), 1), 'Comentário de teste para o Estacionamento Paulista.' FROM `usuarios` WHERE `email` IN ('lucas.p@email.com', 'juliana.s@email.com', 'rafael.o@email.com', 'camila.c@email.com', 'fernando.m@email.com', 'beatriz.a@email.com');
+-- 6 Avaliações para Faria Lima
+INSERT INTO `avaliacoes` (id, usuario_id, estabelecimento_id, nota, comentario) SELECT UUID(), id, @estac_farialima_id, ROUND(3 + (RAND() * 2), 1), 'Avaliação de teste para o Estacionamento Faria Lima.' FROM `usuarios` WHERE `email` IN ('tiago.l@email.com', 'sofia.r@email.com', 'gabriel.m@email.com', 'laura.f@email.com', 'matheus.a@email.com', 'isabela.g@email.com');

@@ -21,21 +21,21 @@ export const authMiddleware = (req, res, next) => {
 };
 
 // Middleware para verificar se o usuário está AUTORIZADO (verificação de papel/role)
-export const authorize = (papeisPermitidos = []) => {
-    return (req, res, next) => {
+// export const authorize = (papeisPermitidos = []) => {
+//     return (req, res, next) => {
         
-        if (papeisPermitidos.length === 0) {
-            return res.status(403).json({ message: 'Permissões não configuradas para esta rota.' });
-        }
+//         if (papeisPermitidos.length === 0) {
+//             return res.status(403).json({ message: 'Permissões não configuradas para esta rota.' });
+//         }
 
-        const papelDoUsuario = req.usuario.papel;
+//         const papelDoUsuario = req.usuario.papel;
 
         
-        if (!papeisPermitidos.includes(papelDoUsuario)) {
+//         if (!papeisPermitidos.includes(papelDoUsuario)) {
            
-            return res.status(403).json({ message: 'Acesso proibido. Você não tem a permissão necessária.' });
-        }
+//             return res.status(403).json({ message: 'Acesso proibido. Você não tem a permissão necessária.' });
+//         }
 
-        next(); 
-    };
-};
+//         next(); 
+//     };
+// };
