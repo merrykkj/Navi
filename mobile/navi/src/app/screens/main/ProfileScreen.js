@@ -3,7 +3,7 @@ import { View, Text, TextInput, Image, TouchableOpacity, ScrollView, Dimensions,
 import { MaterialIcons, Feather, Ionicons } from '@expo/vector-icons'; 
 import { useLogin } from '../../../providers/loginProvider';
 import * as SQLite from 'expo-sqlite';
-import styles, { COLORS, FOOTER_CLEARANCE, windowWidth } from './Profilestyle';
+import styles, { COLORS, FOOTER_CLEARANCE, windowWidth } from './ProfileStyle';
 
 const openDb = () => SQLite.openDatabase("navi.db");
 

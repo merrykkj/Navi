@@ -13,6 +13,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLogin } from "../../../providers/loginProvider"; 
+import styles from './HomeStyle'
 
 const parkingData = [
   {

@@ -5,66 +5,69 @@ import { useLogin } from '../../providers/loginProvider';
 import { useState } from 'react';
 import { View, TextInput, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 
-// Formulário de login (sem SQLite)
+// URL da API (se precisar, coloque sua URL real)
+const apiUrl = "http://seu-backend.com/login";
+
+// Formulário de login
 export const LoginForm = ({ navigation }) => {
   const { setUser } = useLogin();
 
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     try {
       if (!email || !senha) {
-        throw new Error('Preencha todos os campos!');
+        Alert.alert("Erro", "Preencha todos os campos!");
+        return;
       }
 
       const response = await fetch(apiUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: email,
-          senha: senha
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, senha })
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Falha na autenticação');
+        throw new Error(data.message || "Falha na autenticação");
       }
 
-      Alert.alert('Login fictício', `Bem-vindo, ${fakeUser.nome}!`);
-      console.log('Login bem-sucedido:', data.user);
+      Alert.alert("Login realizado", `Bem-vindo(a), ${data.user?.nome || "usuário"}`);
+      setUser(data.user);
 
     } catch (error) {
       console.error(error);
-      Alert.alert('Erro no Login', error.message || 'Erro desconhecido.');
+      Alert.alert("Erro no Login", error.message || "Erro desconhecido.");
     }
   };
 
   return (
     <View style={styles.container}>
+      
+      {/* Cabeçalho */}
       <View style={{ alignItems: "center" }}>
         <Text style={{ fontWeight: "bold", fontSize: 25 }}>Bem-vindo de volta</Text>
         <Text style={{ color: "#6e727a" }}>Faça login para continuar</Text>
       </View>
 
+      {/* EMAIL */}
       <TextInput
         style={styles.input}
         placeholder="Endereço de Email"
-        value={form.email}
-        onChangeText={(text) => setEmail(e.target.value)}
+        value={email}
+        onChangeText={setEmail}
         keyboardType="email-address"
         autoCapitalize="none"
       />
+
+      {/* SENHA */}
       <TextInput
         style={styles.input}
         placeholder="Senha"
-        value={form.senha}
-        onChangeText={(text) => setForm({ ...form, senha: text })}
+        value={senha}
+        onChangeText={setSenha}
         secureTextEntry={true}
       />
 
@@ -75,37 +78,25 @@ export const LoginForm = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Botao de login */}
+      {/* Botão de Login */}
       <TouchableOpacity style={styles.button} onPress={handleSubmit}>
         <Text style={styles.buttonText}>Entrar</Text>
       </TouchableOpacity>
 
-      {/* cadastrar */}
-      <View style={{ display: "flex", flexDirection: "row", paddingTop: 15 }}>
+      {/* Criar conta */}
+      <View style={{ flexDirection: "row", paddingTop: 15, justifyContent: "center" }}>
         <Text>Não tem uma conta? </Text>
         <TouchableOpacity onPress={() => navigation.navigate('Cadastre-se')}>
           <Text style={styles.links}>Cadastre-se</Text>
         </TouchableOpacity>
       </View>
+
     </View>
   );
 };
 
+// ESTILOS
 const styles = StyleSheet.create({
-  page: {
-    flex: 1,
-    alignItems: 'center',
-    marginTop: 40,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  links: {
-    color: "#D08700",
-    fontWeight: "bold",
-  },
   container: {
     width: '90%',
     padding: 20,
@@ -126,6 +117,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 8,
     fontSize: 16,
+  },
+  links: {
+    color: "#D08700",
+    fontWeight: "bold",
   },
   button: {
     backgroundColor: "#FFDE33",
