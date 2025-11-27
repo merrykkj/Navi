@@ -1,24 +1,25 @@
 import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from '../config/jwt.js'; // Importar a chave secreta
 
-// Middleware para verificar se o usuário está autenticado
-export const authMiddleware = (req, res, next) => {
-    const authHeader = req.headers.authorization;
+const authMiddleware = (req, res, next) => {
+  const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ message: 'Acesso negado. Nenhum token fornecido.' });
-    }
+  if (!authHeader) {
+    return res.status(401).json({ mensagem: 'Não autorizado: Token não fornecido' });
+  }
 
-    const token = authHeader.substring(7); 
+  const [ , token] = authHeader.split(' ');
 
-    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-        if (err) {
-            return res.status(401).json({ message: 'Token inválido ou expirado.' });
-        }
-
-        req.usuario = decoded;
-        next(); 
-    });
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.usuarioId = decoded.id;
+    next();
+  } catch (error) {
+    return res.status(403).json({ mensagem: 'Não autorizado: Token inválido' });
+  }
 };
+
+export default authMiddleware;
 
 // Middleware para verificar se o usuário está AUTORIZADO (verificação de papel/role)
 // export const authorize = (papeisPermitidos = []) => {

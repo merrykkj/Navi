@@ -5,8 +5,8 @@ const LoginContext = createContext(null);
 
 export const LoginProvider = ({ children }) => {
     const [user, setUser] = useState(null);
-    const [isLoading, setIsLoading] = useState(true)
-
+    const [isLoading, setIsLoading] = useState(true);
+    
     useEffect(() => {
         const carregarUsuario = async () => {
             try {
@@ -15,11 +15,9 @@ export const LoginProvider = ({ children }) => {
                     setUser(JSON.parse(dadosSalvos));
                     console.log("Usuário carregado do AsyncStorage:", JSON.parse(dadosSalvos));
                 }
-
             } catch (error) {
                 console.log('erro ao carregar', error);
             } finally {
-                // Avisa que terminou de carregar, tendo achado usuário ou não
                 setIsLoading(false);
             }
         };
