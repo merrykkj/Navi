@@ -5,12 +5,14 @@ import { useLogin } from '../../providers/loginProvider.js'
 import { useState } from 'react';
 import { View, TextInput, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 
+import API_URL from '../../config/api.js';
+
 // Formulário de login
 export const LoginForm = ({ navigation }) => {
   const { setUser } = useLogin();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
-  const apiUrlLogin = 'http://10.84.6.146:3002/auth/login';
+  const apiUrlLogin = `${API_URL}/auth/login`;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -36,11 +38,8 @@ export const LoginForm = ({ navigation }) => {
       if (!response.ok) {
         Alert.alert(data.mensagem, "Não enccontramos o usuario inserido" || 'Falha na autenticação');
       }
-
       setUser(data.user);
-
       Alert.alert('Login Realizado com sucesso!', `Bem-vindo, ${data.user.nome}!`);
-
     } catch (error) {
       console.error(error);
       Alert.alert('Erro no Login', error.message || 'Erro desconhecido.');

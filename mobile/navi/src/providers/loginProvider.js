@@ -5,6 +5,7 @@ const LoginContext = createContext(null);
 
 export const LoginProvider = ({ children }) => {
     const [user, setUser] = useState(null);
+    const [isLoading, setIsLoading] = useState(true)
 
     useEffect(() => {
         const carregarUsuario = async () => {
@@ -17,6 +18,9 @@ export const LoginProvider = ({ children }) => {
 
             } catch (error) {
                 console.log('erro ao carregar', error);
+            } finally {
+                // Avisa que terminou de carregar, tendo achado usuário ou não
+                setIsLoading(false);
             }
         };
         carregarUsuario();
@@ -34,10 +38,10 @@ export const LoginProvider = ({ children }) => {
         salvarUsuario();
     }, [user]);
 
-    
+
 
     return (
-        <LoginContext.Provider value={{ user, setUser }}>
+        <LoginContext.Provider value={{ user, setUser, isLoading }}>
             {children}
         </LoginContext.Provider>
     );
