@@ -13,9 +13,9 @@ Projeto integrador *(TCC – SENAI)* que tem como objetivo desenvolver uma **sol
 
 ## 👥 Equipe
 - **Nycolas De Lima Leandro** – Documentação, Frontend, Banco de dados e Mobile
-- **Gabriel Rosseto** – Backend & IoT
+- **Gabriel Rosseto** – Backendn Frontend, IoT e Mobile
 - **Vitória** – Frontend & Mobile
-- **Murilo** - Backend, Banco de dados
+- **Murilo** - Backend, Banco de dados e Mobile
 
 ---
 
