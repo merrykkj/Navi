@@ -1,12 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import * as SQLite from "expo-sqlite";
 import { useLogin } from "../../../providers/loginProvider";
-
-const openDb = async () => {
-  return await SQLite.openDatabaseAsync("navi.db");
-};
 
 export default function ProfileScreen() {
   const { user, setUser } = useLogin();
@@ -32,38 +27,27 @@ export default function ProfileScreen() {
     }
   }, [user]);
 
-  async function handleSave() {
-    if (!user || !user.id_usuario) {
+  function handleSave() {
+    if (!user) {
       Alert.alert("Erro", "Usuário não identificado para salvar as alterações.");
       return;
     }
 
-    try {
-      const db = await openDb();
-      await db.runAsync(
-        `UPDATE usuario
-         SET nome = ?, email = ?, telefone = ?, papel = ?, url_foto_perfil = ?
-         WHERE id_usuario = ?`,
-        [
-          form.nome.trim(),
-          form.email.trim(),
-          form.telefone.trim(),
-          form.papel.trim(),
-          form.url_foto_perfil.trim(),
-          user.id_usuario,
-        ]
-      );
+    // Cria um objeto com os dados atualizados
+    // Mantém o ID e outros dados antigos do usuário, sobrescrevendo com o formulário novo
+    const updatedUser = {
+      ...user,
+      nome: form.nome.trim(),
+      email: form.email.trim(),
+      telefone: form.telefone.trim(),
+      papel: form.papel.trim(),
+      url_foto_perfil: form.url_foto_perfil.trim(),
+    };
 
-      const updatedUser = await db.getFirstAsync(
-        "SELECT * FROM usuario WHERE id_usuario = ?",
-        [user.id_usuario]
-      );
-      setUser(updatedUser);
-      Alert.alert("Sucesso", "Perfil atualizado com sucesso!");
-    } catch (err) {
-      console.error("Erro ao salvar:", err);
-      Alert.alert("Erro", "Não foi possível salvar as alterações.");
-    }
+    // Atualiza o estado global da aplicação
+    setUser(updatedUser);
+    
+    Alert.alert("Sucesso", "Perfil atualizado com sucesso! (Apenas localmente na sessão)");
   }
 
   function handleLogout() {

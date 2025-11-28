@@ -1,3 +1,5 @@
+import React from "react";
+import { View, ActivityIndicator } from "react-native";
 import { createStackNavigator } from "@react-navigation/stack";
 
 // Importando as rotas
@@ -11,19 +13,25 @@ import Settings from "./src/app/screens/settings/settings.js";
 import Help from "./src/app/screens/help/help.js";
 import { Register } from "./src/app/account/register/register.js";
 
-import { useLogin } from "./src/providers/loginProvider.js";
+import { useLogin } from './src/providers/loginProvider.js'
 
 // Importando o Navegador
 const Stack = createStackNavigator();
 
 function AppNavigator() {
-    const { user } = useLogin();
-
+    const { user, isLoading } = useLogin();
+    if (isLoading) {
+        return (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#FFD600" />
+            </View>
+        );
+    }
     return (
         <Stack.Navigator>
             {user ? (
                 <>
-                    <Stack.Screen name="Página inicial" component={Main} />
+                    < Stack.Screen name="Página inicial" component={Main} />
                     <Stack.Screen name="Conta" component={Account} />
                     <Stack.Screen name="Histórico" component={History} />
                     <Stack.Screen name="Ajustes" component={Settings} />
@@ -36,7 +44,8 @@ function AppNavigator() {
                     <Stack.Screen name="Atualizar a senha" component={UpdatePassword} />
                     <Stack.Screen name="Cadastre-se" component={Register} />
                 </>
-            )}
+            )
+            }
         </Stack.Navigator>
     );
 }

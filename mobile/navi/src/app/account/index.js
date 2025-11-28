@@ -1,16 +1,18 @@
 //useLogin
-import { useLogin } from '../../providers/loginProvider';
+import { useLogin } from '../../providers/loginProvider.js'
 
 //bibliotecas
 import { useState } from 'react';
 import { View, TextInput, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 
-// Formulário de login (sem SQLite)
+import API_URL from '../../config/api.js';
+
+// Formulário de login
 export const LoginForm = ({ navigation }) => {
   const { setUser } = useLogin();
-
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  const apiUrlLogin = `${API_URL}/auth/login`;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -19,7 +21,7 @@ export const LoginForm = ({ navigation }) => {
         throw new Error('Preencha todos os campos!');
       }
 
-      const response = await fetch(apiUrl, {
+      const response = await fetch(apiUrlLogin, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -29,16 +31,15 @@ export const LoginForm = ({ navigation }) => {
           senha: senha
         }),
       });
+      //email teste: proprietario@email.com
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Falha na autenticação');
+        Alert.alert(data.mensagem, "Não enccontramos o usuario inserido" || 'Falha na autenticação');
       }
-
-      Alert.alert('Login fictício', `Bem-vindo, ${fakeUser.nome}!`);
-      console.log('Login bem-sucedido:', data.user);
-
+      setUser(data.user);
+      Alert.alert('Login Realizado com sucesso!', `Bem-vindo, ${data.user.nome}!`);
     } catch (error) {
       console.error(error);
       Alert.alert('Erro no Login', error.message || 'Erro desconhecido.');
@@ -55,16 +56,16 @@ export const LoginForm = ({ navigation }) => {
       <TextInput
         style={styles.input}
         placeholder="Endereço de Email"
-        value={form.email}
-        onChangeText={(text) => setEmail(e.target.value)}
+        value={email}
+        onChangeText={setEmail}
         keyboardType="email-address"
         autoCapitalize="none"
       />
       <TextInput
         style={styles.input}
         placeholder="Senha"
-        value={form.senha}
-        onChangeText={(text) => setForm({ ...form, senha: text })}
+        value={senha}
+        onChangeText={setSenha}
         secureTextEntry={true}
       />
 
