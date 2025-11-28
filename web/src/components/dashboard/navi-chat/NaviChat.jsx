@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 import { 
     PaperAirplaneIcon, 
-    ChatBubbleLeftRightIcon, 
+    // ChatBubbleLeftRightIcon removido pois o botão foi retirado
     FolderOpenIcon, 
     XMarkIcon,
     DocumentTextIcon,
@@ -255,7 +255,7 @@ export default function NaviChat({
         if (!activeConversaId || !user) { setHistorico([]); return; }
 
         setIsLoading(true);
-        api.get(`/api/conversas-navi/${activeConversaId}/historico`)
+        api.get(`/api/conversas-navi/${activeConversaId}/salvar`)
             .then(response => {
                 const data = response.data;
                 setHistorico(Array.isArray(data) ? data : []);
@@ -374,12 +374,8 @@ export default function NaviChat({
     return (
         <div className="relative w-full h-screen overflow-hidden font-sans text-slate-600 dark:text-slate-300 bg-[#F3F4F6] dark:bg-slate-900 transition-colors duration-300">
             <header className="absolute top-0 left-0 right-0 h-16 px-6 flex items-center justify-between z-40 bg-transparent pointer-events-none">
-                <button 
-                    onClick={toggleChatDrawer}
-                    className="pointer-events-auto p-2 bg-white dark:bg-slate-800 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-slate-700 dark:text-slate-200"
-                >
-                    {isChatDrawerOpen ? <XMarkIcon className="w-6 h-6" /> : <ChatBubbleLeftRightIcon className="w-6 h-6" />}
-                </button>
+                
+                {/* 🚨 BOTÃO DO CHAT DRAWER REMOVIDO AQUI */}
 
                 <div className="font-bold text-slate-400 text-xs tracking-widest uppercase pointer-events-auto">
                    NAVI IA
@@ -392,47 +388,17 @@ export default function NaviChat({
                     {isFilesDrawerOpen ? <XMarkIcon className="w-6 h-6" /> : <FolderOpenIcon className="w-6 h-6" />}
                 </button>
             </header>
-            {(isChatDrawerOpen || isFilesDrawerOpen) && (
+            
+            {/* 🚨 BACKDROP PARA CHAT DRAWER REMOVIDO (Só sobrou para Files) */}
+            {(isFilesDrawerOpen) && (
                 <div 
                     className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm z-40 transition-opacity duration-300"
                     onClick={closeAllDrawers}
                 />
             )}
-            <aside 
-                className={`
-                    absolute top-4 bottom-4 left-4 w-80 bg-white dark:bg-slate-800 rounded-3xl shadow-2xl z-50
-                    flex flex-col overflow-hidden transition-transform duration-300 ease-in-out
-                    ${isChatDrawerOpen ? 'translate-x-0' : '-translate-x-[120%]'}
-                `}
-                onClick={e => e.stopPropagation()} 
-            >
-                <div className="p-6 flex items-center justify-between border-b border-slate-100 dark:border-slate-700">
-                    <h2 className="font-bold text-lg text-slate-800 dark:text-white">Conversas</h2>
-                    <button onClick={handleNewChat} className="bg-yellow-400 hover:bg-yellow-500 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors shadow-sm shadow-yellow-200">
-                        + Novo Chat
-                    </button>
-                </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                    {conversas.length === 0 && <p className="text-center text-xs text-slate-400 mt-10">Nenhuma conversa anterior.</p>}
-                    {conversas.map((chat) => (
-                        <button 
-                            key={chat.id_conversa}
-                            onClick={() => handleSelectChat(chat.id_conversa)}
-                            className={`
-                                w-full text-left p-4 rounded-2xl transition-all duration-200 border
-                                ${activeConversaId === chat.id_conversa 
-                                    ? 'bg-slate-50 border-slate-200 shadow-inner dark:bg-slate-700 dark:border-slate-600' 
-                                    : 'bg-white border-transparent hover:bg-slate-50 hover:border-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700'}
-                            `}
-                        >
-                            <div className="font-medium text-sm text-slate-700 dark:text-slate-200 truncate">{chat.titulo || 'Sem título'}</div>
-                            <div className="text-xs text-slate-400 mt-1">
-                                {chat.data_atualizacao ? new Date(chat.data_atualizacao).toLocaleDateString() : 'Recentemente'}
-                            </div>
-                        </button>
-                    ))}
-                </div>
-            </aside>
+            
+            {/* 🚨 ASIDE DO CHAT DRAWER REMOVIDO COMPLETO */}
+
             <aside 
                 className={`
                     absolute top-4 bottom-4 right-4 w-80 bg-white dark:bg-slate-800 rounded-3xl shadow-2xl z-50
@@ -475,65 +441,25 @@ export default function NaviChat({
                         </div>
                     ) : (
                         <div className="py-4">
-                            {historico.map((msg, idx) => (
-                                <ChatMessageItem 
-                                    key={idx} 
-                                    msg={msg} 
-                                    isUser={msg.role === 'user'}
-                                    messageRef={el => messageRefs.current[idx] = el}
-                                />
-                            ))}
-                            {isLoading && (
-                                <div className="flex justify-start mb-4">
-                                     <div className="bg-white rounded-2xl rounded-tl-none shadow-sm px-4 py-2 dark:bg-slate-800">
-                                        <ThinkingDots />
-                                    </div>
-                                </div>
-                            )}
+                            {historico.map((msg, idx) => (<ChatMessageItem key={idx} msg={msg} isUser={msg.role === 'user'} messageRef={el => messageRefs.current[idx] = el} />))}
+                            {isLoading && (<div className="flex justify-start mb-4"><div className="bg-white rounded-2xl rounded-tl-none shadow-sm px-4 py-2 dark:bg-slate-800"><ThinkingDots /></div></div>)}
                             <div ref={messagesEndRef} />
                         </div>
                     )}
                 </div>
-
-                {/* Footer */}
                 <div className="flex-shrink-0 mt-4">
                     {error && <div className="text-xs text-red-500 text-center mb-2">{error}</div>}
-
-                    {/* Sugestões */}
                     {historico.length === 0 && tagSuggestions.length > 0 && (
                         <div className="flex justify-center gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
-                            {tagSuggestions.map((tag, i) => (
-                                <button 
-                                    key={i} 
-                                    onClick={() => setUserInput(tag)}
-                                    className="whitespace-nowrap px-4 py-2 bg-white border border-slate-200 rounded-full text-xs font-medium text-slate-600 shadow-sm hover:bg-slate-50 transition-colors dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700"
-                                >
-                                    {tag}
-                                </button>
-                            ))}
+                            {tagSuggestions.map((tag, i) => (<button key={i} onClick={() => setUserInput(tag)} className="whitespace-nowrap px-4 py-2 bg-white border border-slate-200 rounded-full text-xs font-medium text-slate-600 shadow-sm hover:bg-slate-50 transition-colors dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700">{tag}</button>))}
                         </div>
                     )}
-
-                    <form 
-                        onSubmit={handleSubmit} 
-                        className="relative flex items-center bg-white rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.05)] border border-slate-100 p-2 pl-6 dark:bg-slate-800 dark:border-slate-700"
-                    >
-                        <input
-                            value={userInput}
-                            onChange={(e) => setUserInput(e.target.value)}
-                            placeholder={!isSessionReady ? "Conectando..." : "O que você gostaria de saber hoje?"}
-                            disabled={isLoading || !isSessionReady}
-                            className="flex-1 bg-transparent outline-none text-sm text-slate-700 placeholder:text-slate-400 dark:text-slate-200"
-                        />
-                        <button 
-                            type="submit"
-                            disabled={isLoading || !userInput.trim() || !isSessionReady} 
-                            className="p-3 bg-yellow-400 text-white rounded-full hover:bg-yellow-500 disabled:opacity-50 disabled:hover:bg-yellow-400 transition-all duration-200 shadow-md shadow-yellow-200"
-                        >
+                    <form onSubmit={handleSubmit} className="relative flex items-center bg-white rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.05)] border border-slate-100 p-2 pl-6 dark:bg-slate-800 dark:border-slate-700">
+                        <input value={userInput} onChange={(e) => setUserInput(e.target.value)} placeholder={!isSessionReady ? "Conectando..." : "O que você gostaria de saber hoje?"} disabled={isLoading || !isSessionReady} className="flex-1 bg-transparent outline-none text-sm text-slate-700 placeholder:text-slate-400 dark:text-slate-200" />
+                        <button type="submit" disabled={isLoading || !userInput.trim() || !isSessionReady} className="p-3 bg-yellow-400 text-white rounded-full hover:bg-yellow-500 disabled:opacity-50 disabled:hover:bg-yellow-400 transition-all duration-200 shadow-md shadow-yellow-200">
                             <PaperAirplaneIcon className="w-5 h-5 -rotate-45 translate-x-[2px] -translate-y-[1px]" />
                         </button>
                     </form>
-                    
                     <div className="text-center mt-3">
                         <p className="text-[10px] text-slate-400">O Navi pode cometer erros. Verifique informações importantes.</p>
                     </div>

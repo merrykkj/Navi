@@ -1,4 +1,4 @@
-import { criarVeiculo, listarVeiculosPorUsuario, obterVeiculoPorId, atualizarVeiculo, excluirVeiculo } from "../models/Veiculo.js";
+// import { criarVeiculo, listarVeiculosPorUsuario, obterVeiculoPorId, atualizarVeiculo, excluirVeiculo } from "../models/Veiculo.js";
 import { criarVeiculoSchema, atualizarVeiculoSchema } from '../schemas/veiculo.schema.js';
 import { paramsSchema } from '../schemas/params.schema.js';
 
