@@ -21,7 +21,6 @@ export default function ProfileScreen() {
         nome: user.nome || "",
         email: user.email || "",
         telefone: user.telefone || "",
-        papel: user.papel || "",
         url_foto_perfil: user.url_foto_perfil || "",
       });
     }
@@ -40,8 +39,7 @@ export default function ProfileScreen() {
       nome: form.nome.trim(),
       email: form.email.trim(),
       telefone: form.telefone.trim(),
-      papel: form.papel.trim(),
-      url_foto_perfil: form.url_foto_perfil.trim(),
+      url_foto_perfil: form.url_foto_perfil.trim()
     };
 
     // Atualiza o estado global da aplicação

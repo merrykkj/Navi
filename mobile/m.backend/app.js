@@ -2,6 +2,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 dotenv.config();
+
 import authRoutes from './routes/authRotas.js';
 // import estacionamentoRoutes from './routes/EstacionamentoRoutes.js';
 // import vagaRoutes from './routes/VagaRoutes.js';
@@ -10,7 +11,7 @@ import authRoutes from './routes/authRotas.js';
 
 // Configuração do Express
 const app = express();
-const port = process.env.PORT || 3000;
+const port = 3002;
 app.use(express.json());
 
 // Rotas
