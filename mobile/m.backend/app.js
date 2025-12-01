@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import authRoutes from './routes/authRotas.js';
-// import estacionamentoRoutes from './routes/EstacionamentoRoutes.js';
+import estacionamentoRoutes from './routes/EstacionamentoRoutes.js';
 // import vagaRoutes from './routes/VagaRoutes.js';
 // import veiculoRoutes from './routes/VeiculoRoutes.js';
 // import reservaRoutes from './routes/ReservRoutes.js'; 
@@ -15,8 +15,11 @@ const port = 3002;
 app.use(express.json());
 
 // Rotas
+app.get('/', (req, res) => {
+    res.send('API de Estacionamento funcionando!');
+});
 app.use('/auth', authRoutes);
-// app.use('/estacionamentos', estacionamentoRoutes);
+app.use('/estacionamentos', estacionamentoRoutes);
 // app.use('/vagas', vagaRoutes);
 // app.use('/veiculos', veiculoRoutes);
 // app.use('/reservas', reservaRoutes);

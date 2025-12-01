@@ -13,8 +13,6 @@ const pool = mysql.createPool({
     queueLimit: 0
 });
 
-// Função assíncrona que obtém uma conexão do pool.
-// Essa conexão é usada para executar as queries SQL.
 async function getConnection() {
     return pool.getConnection();
 }
@@ -84,7 +82,7 @@ async function update(table, data, where) {
 }
 
 // Função para excluir um registro
-async function deleteRecord(table, where) {
+async function deleteRecord(table, where, params = []) {
     const connection = await getConnection();
     try {
         const sql = `DELETE FROM ${table} WHERE ${where}`;
