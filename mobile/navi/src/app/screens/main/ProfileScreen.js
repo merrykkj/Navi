@@ -5,15 +5,8 @@ import { useLogin } from "../../../providers/loginProvider";
 
 export default function ProfileScreen() {
   const { user, setUser } = useLogin();
-  const [form, setForm] = useState({
-    nome: "",
-    email: "",
-    telefone: "",
-    papel: "",
-    url_foto_perfil: "",
-  });
-
-  const [focusedInput, setFocusedInput] = useState(null);
+  const [cliente, setCliente] = useState(null);
+  const [editando, setEditando] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -48,259 +41,86 @@ export default function ProfileScreen() {
     Alert.alert("Sucesso", "Perfil atualizado com sucesso! (Apenas localmente na sessão)");
   }
 
-  function handleLogout() {
+  const handleLogout = () => {
     Alert.alert("Sair", "Deseja realmente sair?", [
       { text: "Cancelar", style: "cancel" },
-      { text: "Sair", style: "destructive", onPress: () => setUser(null) },
+      { text: "Sair", style: "destructive", onPress: () => setUser(null) }
     ]);
-  }
+  };
 
-  if (!user) {
+  if (!cliente) {
     return (
-      <SafeAreaView style={styles.centered}>
-        <Text style={{ color: "#000" }}>Nenhum usuário logado.</Text>
-      </SafeAreaView>
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text>Nenhum usuário logado.</Text>
+      </View>
     );
   }
 
-  const StyledInput = ({ label, value, onChangeText, keyboardType, autoCapitalize, placeholder, name }) => (
-    <View style={styles.inputGroup}>
-      <Text style={styles.inputLabel}>{label}</Text>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        style={[styles.input, focusedInput === name && styles.inputFocused]}
-        keyboardType={keyboardType}
-        autoCapitalize={autoCapitalize}
-        placeholder={placeholder}
-        placeholderTextColor="#A9A9A9"
-        onFocus={() => setFocusedInput(name)}
-        onBlur={() => setFocusedInput(null)}
-      />
-    </View>
-  );
-
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        
-        <View style={styles.headerCard}>
-          <Image
-            source={
-              form.url_foto_perfil
-                ? { uri: form.url_foto_perfil }
-                : require("../../../../public/icon.png")
-            }
-            style={styles.avatar}
-          />
+    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.card}>
 
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>{form.nome || "Usuário"}</Text>
-            <Text style={styles.userRole}>{form.papel || "Sem Função"}</Text>
+        <View style={styles.header}>
+          <View style={styles.avatarContainer}>
+            <Image source={{ uri: cliente.foto }} style={styles.avatar} />
+            <TouchableOpacity style={styles.photoEditButton}>
+              <Feather name="camera" size={18} color={'white'} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.headerInfo}>
+            {editando ? (
+              <TextInput
+                style={styles.inputNameEdit}
+                value={cliente.nome}
+                onChangeText={(t) => atualizarCampo('nome', t)}
+                placeholderTextColor={COLORS.textLight}
+              />
+            ) : (
+              <Text style={styles.name}>{cliente.nome}</Text>
+            )}
+            <View style={styles.roleRow}>
+              <MaterialIcons name="access-time" size={14} color={COLORS.textMedium} />
+              <Text style={styles.role}>Cliente desde {cliente.anoEntrada || 'Não informado'}</Text>
+            </View>
           </View>
         </View>
-        
-        <View style={styles.editCard}>
-          <Text style={styles.sectionTitle}>Detalhes do Perfil</Text>
-          
-          <StyledInput
-            name="nome"
-            label="Nome Completo"
-            value={form.nome}
-            onChangeText={(t) => setForm({ ...form, nome: t })}
-          />
 
-          <StyledInput
-            name="email"
-            label="Email"
-            value={form.email}
-            onChangeText={(t) => setForm({ ...form, email: t })}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
+        <View style={styles.separator} />
 
-          <StyledInput
-            name="telefone"
-            label="Telefone"
-            value={form.telefone}
-            onChangeText={(t) => setForm({ ...form, telefone: t })}
-            keyboardType="phone-pad"
-          />
+        <Text style={styles.sectionTitle}>Dados de Contato e Plano</Text>
+        <View style={styles.box}>
+          <InfoRow label="Telefone" value={cliente.telefone} field="telefone" updateFn={atualizarCampo} iconName="call-outline" keyboardType="phone-pad" editando={editando} />
+          <InfoRow label="Email" value={cliente.email} field="email" updateFn={atualizarCampo} iconName="mail-outline" keyboardType="email-address" editando={editando} />
+          <InfoRow label="Plano" value={cliente.plano} field="plano" updateFn={atualizarCampo} iconName="receipt-outline" editando={editando} />
+        </View>
 
-          <StyledInput
-            name="papel"
-            label="Papel / Função"
-            value={form.papel}
-            onChangeText={(t) => setForm({ ...form, papel: t })}
-            placeholder="ADMINISTRADOR | PROPRIETARIO | MOTORISTA"
-            autoCapitalize="characters"
-          />
+        <View style={styles.separator} />
 
-          <StyledInput
-            name="url_foto_perfil"
-            label="URL da Foto de Perfil"
-            value={form.url_foto_perfil}
-            onChangeText={(t) => setForm({ ...form, url_foto_perfil: t })}
-            placeholder="Ex: https://example.com/foto.jpg"
-            autoCapitalize="none"
-          />
+        <Text style={styles.sectionTitle}>Detalhes do Veículo</Text>
+        <View style={styles.box}>
+          <InfoRow label="Modelo" value={cliente.veiculo.modelo} field="modelo" updateFn={atualizarVeiculo} iconName="car-outline" editando={editando} />
+          <InfoRow label="Placa" value={cliente.veiculo.placa} field="placa" updateFn={atualizarVeiculo} iconName="pricetag-outline" editando={editando} />
+          <InfoRow label="Cor" value={cliente.veiculo.cor} field="cor" updateFn={atualizarVeiculo} iconName="color-filter-outline" editando={editando} />
+        </View>
 
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-            <Text style={styles.saveText}>Salvar Alterações</Text>
+        <View style={styles.actionButtonsContainer}>
+          <TouchableOpacity style={styles.buttonPrimary} onPress={() => (editando ? handleSalvar() : setEditando(true))}>
+            <Text style={styles.buttonPrimaryText}>{editando ? 'Salvar Alterações' : 'Editar Perfil'}</Text>
+            <Ionicons name={editando ? 'save-outline' : 'create-outline'} size={18} color={'white'} style={{ marginLeft: 8 }} />
+          </TouchableOpacity>
+
+          {editando && (
+            <TouchableOpacity style={styles.buttonCancel} onPress={() => setEditando(false)}>
+              <Text style={styles.buttonCancelText}>Cancelar Edição</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity style={[styles.buttonCancel, { marginTop: 20 }]} onPress={handleLogout}>
+            <Text style={styles.buttonCancelText}>Sair da Conta</Text>
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutText}>Sair da Conta</Text>
-        </TouchableOpacity>
-        
-      </ScrollView>
-    </SafeAreaView>
+      </View>
+    </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#F8F8F8",
-  },
-
-  headerCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFF",
-    padding: 20,
-    borderRadius: 15,
-    marginBottom: 25,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-
-  avatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    marginRight: 18,
-    borderColor: "#FFC107", 
-    borderWidth: 4, 
-    backgroundColor: "#EEE",
-  },
-
-  userInfo: {
-    flex: 1,
-  },
-
-  userName: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: "#222",
-    lineHeight: 30,
-  },
-
-  userRole: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#777",
-    marginTop: 3,
-  },
-
-  editCard: {
-    backgroundColor: "#FFF",
-    padding: 25,
-    borderRadius: 15,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#333",
-    marginBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
-    paddingBottom: 8,
-  },
-
-  inputGroup: {
-    marginBottom: 15,
-  },
-
-  inputLabel: {
-    fontSize: 14,
-    color: "#555",
-    marginBottom: 6,
-    fontWeight: "600",
-  },
-
-  input: {
-    backgroundColor: "#F9F9F9",
-    borderRadius: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 15,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
-    color: "#333",
-    transitionProperty: 'border-color', 
-    transitionDuration: 200,
-  },
-  
-  inputFocused: {
-    borderColor: "#FFC107",
-    backgroundColor: "#FFF",
-  },
-
-  saveButton: {
-    marginTop: 30,
-    backgroundColor: "#FFC107",
-    paddingVertical: 18,
-    borderRadius: 12,
-    shadowColor: "#FFC107",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 8,
-  },
-
-  saveText: {
-    textAlign: "center",
-    fontWeight: "800",
-    fontSize: 18,
-    color: "#222",
-  },
-
-  logoutButton: {
-    marginTop: 15,
-    paddingVertical: 16,
-    borderRadius: 10,
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: "#C8C8C8",
-  },
-
-  logoutText: {
-    textAlign: "center",
-    fontWeight: "600",
-    fontSize: 16,
-    color: "#777",
-  },
-});

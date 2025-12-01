@@ -2,15 +2,14 @@ import React from "react";
 import { View, ActivityIndicator } from "react-native";
 import { createStackNavigator } from "@react-navigation/stack";
 
-// Importando as rotas
 import { LoginForm } from "./src/app/account/index.js";
 import { ForgotPassword, UpdatePassword } from "./src/app/account/forgot-password/forgot-password.js";
-import Account from "./src/app/account/account.js";
 
 import Main from "./src/app/screens/main/main.js";
-import History from "./src/app/screens/history/history.js";
-import Settings from "./src/app/screens/settings/settings.js";
-import Help from "./src/app/screens/help/help.js";
+import Account from '../navi/src/app/account/account.js'
+import History from "./src/app/screens/main/HistoricoScreen.js";
+import Settings from "./src/app/screens/main/SettingsScreen.js";
+import Help from "./src/app/screens/main/AjudaScreen.js";
 import { Register } from "./src/app/account/register/register.js";
 
 import { useLogin } from './src/providers/loginProvider.js'
@@ -31,7 +30,7 @@ function AppNavigator() {
         <Stack.Navigator>
             {user ? (
                 <>
-                    < Stack.Screen name="Página inicial" component={Main} />
+                    < Stack.Screen name="Home" component={Main} />
                     <Stack.Screen name="Conta" component={Account} />
                     <Stack.Screen name="Histórico" component={History} />
                     <Stack.Screen name="Ajustes" component={Settings} />

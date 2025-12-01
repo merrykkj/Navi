@@ -8,6 +8,7 @@ import HomeScreen from "./HomeScreen";
 import ProfileScreen from "./ProfileScreen";
 import SettingsScreen from "./SettingsScreen";
 import HistoricoScreen from "./HistoricoScreen";
+import AjudaScreen from "./AjudaScreen";
 
 const SIDEBAR_WIDTH = 270;
 const DARK_TEXT = "#1f2937";
@@ -29,19 +30,21 @@ export default function Main({ navigation }) {
 
   const handleNavigate = (screenName) => {
     setIsSidebarOpen(false);
-    navigation.navigate(screenName);
+    setActiveTab(screenName);
   };
 
   const renderContent = () => {
     switch (activeTab) {
       case "home":
         return <HomeScreen />;
-        case "historico":
-          return <HistoricoScreen />;
+      case "historico":
+        return <HistoricoScreen />;
       case "profile":
         return <ProfileScreen />;
       case "settings":
-        return <SettingsScreen />;
+        return <SettingsScreen onNavigate={handleNavigate} />;
+        case "ajuda":
+          return <AjudaScreen />;
       default:
         return <HomeScreen />;
     }
