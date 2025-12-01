@@ -30,7 +30,7 @@ function AppNavigator() {
         <Stack.Navigator>
             {user ? (
                 <>
-                    < Stack.Screen name="Página inicial" component={Main} />
+                    < Stack.Screen name="Home" component={Main} />
                     <Stack.Screen name="Conta" component={Account} />
                     <Stack.Screen name="Histórico" component={History} />
                     <Stack.Screen name="Ajustes" component={Settings} />

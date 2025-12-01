@@ -1,111 +1,114 @@
-//useLogin
-import { useLogin } from '../../providers/loginProvider.js'
-
-//bibliotecas
-import { useState } from 'react';
-import { View, TextInput, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-
+import React, { useState } from 'react';
+import { useLogin } from '../../providers/loginProvider.js';
+import { View, TextInput, Text, TouchableOpacity, StyleSheet, ImageBackground } from 'react-native';
 import API_URL from '../../config/api.js';
+import LoadingScreen from '../components/LoadingScreen.js';
 
-// Formulário de login
 export const LoginForm = ({ navigation }) => {
   const { setUser } = useLogin();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  const [loading, setLoading] = useState(false);
   const apiUrlLogin = `${API_URL}/auth/login`;
 
   const handleSubmit = async () => {
-    try {
-      if (!email || !senha) {
-        Alert.alert("Erro", "Preencha todos os campos!");
-        return;
-      }
+    if (!email || !senha) return;
 
+    setLoading(true);
+    const minLoadingTime = 6000;
+    const startTime = Date.now();
+
+    try {
       const response = await fetch(apiUrlLogin, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, senha })
+        body: JSON.stringify({ email, senha }),
       });
-      //email teste: proprietario@email.com
 
       const data = await response.json();
 
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(minLoadingTime - elapsed, 0);
+
       if (!response.ok) {
-        Alert.alert(data.mensagem, "Não encontramos o usuario inserido" || 'Falha na autenticação');
+        setTimeout(() => setLoading(false), remaining);
+        return;
       }
+
       setUser(data.user);
-      Alert.alert('Login Realizado com sucesso!', `Bem-vindo, ${data.user.nome}!`);
+      setTimeout(() => setLoading(false), remaining);
+
     } catch (error) {
       console.error(error);
-      Alert.alert("Erro no Login", error.message || "Erro desconhecido.");
+      setLoading(false);
     }
   };
 
+  if (loading) {
+    return <LoadingScreen />; 
+  }
+
   return (
-    <View style={styles.container}>
-      
-      {/* Cabeçalho */}
-      <View style={{ alignItems: "center" }}>
-        <Text style={{ fontWeight: "bold", fontSize: 25 }}>Bem-vindo de volta</Text>
-        <Text style={{ color: "#6e727a" }}>Faça login para continuar</Text>
-      </View>
+    <ImageBackground
+      source={require('../../../assets/planodefundo.png')} // Substitua pelo caminho da sua imagem
+      style={styles.wrapper}
+      resizeMode="cover"
+    >
+      <View style={styles.container}>
+        <View style={{ alignItems: "center" }}>
+          <Text style={{ fontWeight: "bold", fontSize: 25 }}>Bem-vindo de volta</Text>
+          <Text style={{ color: "#E5E7EB" }}>Faça login para continuar</Text>
+        </View>
 
-      {/* EMAIL */}
-      <TextInput
-        style={styles.input}
-        placeholder="Endereço de Email"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
+        <TextInput
+          style={styles.input}
+          placeholder="Endereço de Email"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
 
-      {/* SENHA */}
-      <TextInput
-        style={styles.input}
-        placeholder="Senha"
-        value={senha}
-        onChangeText={setSenha}
-        secureTextEntry={true}
-      />
+        <TextInput
+          style={styles.input}
+          placeholder="Senha"
+          value={senha}
+          onChangeText={setSenha}
+          secureTextEntry={true}
+        />
 
-      {/* Esqueci a senha */}
-      <View style={{ paddingTop: 10 }}>
-        <TouchableOpacity onPress={() => navigation.navigate('Esqueci a senha')}>
-          <Text style={styles.links}>Esqueci a senha</Text>
+        <View style={{ paddingTop: 10 }}>
+          <TouchableOpacity onPress={() => navigation.navigate('Esqueci a senha')}>
+            <Text style={styles.links}>Esqueci a senha</Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity style={styles.button} onPress={handleSubmit}>
+          <Text style={styles.buttonText}>Entrar</Text>
         </TouchableOpacity>
+
+        <View style={{ flexDirection: "row", paddingTop: 15, justifyContent: "center" }}>
+          <Text style={{ color: '#fff' }}>Não tem uma conta? </Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Cadastre-se')}>
+            <Text style={styles.links}>Cadastre-se</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-
-      {/* Botão de Login */}
-      <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-        <Text style={styles.buttonText}>Entrar</Text>
-      </TouchableOpacity>
-
-      {/* Criar conta */}
-      <View style={{ flexDirection: "row", paddingTop: 15, justifyContent: "center" }}>
-        <Text>Não tem uma conta? </Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Cadastre-se')}>
-          <Text style={styles.links}>Cadastre-se</Text>
-        </TouchableOpacity>
-      </View>
-
-    </View>
+    </ImageBackground>
   );
 };
 
-// ESTILOS
 const styles = StyleSheet.create({
+  wrapper: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   container: {
     width: '90%',
     padding: 20,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    margin: 20,
+    backgroundColor: "#fff",
+    borderRadius: 15,
   },
   input: {
     height: 45,
@@ -113,24 +116,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginTop: 30,
     paddingHorizontal: 10,
-    borderRadius: 8,
+    borderRadius: 15,
     fontSize: 16,
+    backgroundColor: "#fff",
   },
   links: {
-    color: "#D08700",
+    color: "#fff",
     fontWeight: "bold",
   },
   button: {
-    backgroundColor: "#FFDE33",
+    backgroundColor: "#E5E7EB",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 8,
+    borderRadius: 20,
     padding: 12,
     marginTop: 10,
   },
   buttonText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: "#4E431B",
+    color: "#EAB308",
   },
 });
