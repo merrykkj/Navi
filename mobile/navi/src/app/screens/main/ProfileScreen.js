@@ -10,18 +10,11 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     if (user) {
-      setCliente({
-        nome: user.nome || '',
-        email: user.email || '',
-        telefone: user.telefone || '',
-        anoEntrada: user.anoEntrada || '',
-        plano: user.plano || '',
-        foto: user.url_foto_perfil || 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?q=80&w=800&auto=format&fit=crop&crop=faces',
-        veiculo: {
-          modelo: user.veiculo?.modelo || '',
-          placa: user.veiculo?.placa || '',
-          cor: user.veiculo?.cor || '',
-        },
+      setForm({
+        nome: user.nome || "",
+        email: user.email || "",
+        telefone: user.telefone || "",
+        url_foto_perfil: user.url_foto_perfil || "",
       });
     }
   }, [user]);
@@ -39,8 +32,7 @@ export default function ProfileScreen() {
       nome: form.nome.trim(),
       email: form.email.trim(),
       telefone: form.telefone.trim(),
-      papel: form.papel.trim(),
-      url_foto_perfil: form.url_foto_perfil.trim(),
+      url_foto_perfil: form.url_foto_perfil.trim()
     };
 
     // Atualiza o estado global da aplicação

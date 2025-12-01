@@ -31,7 +31,7 @@ export const LoginForm = ({ navigation }) => {
       const data = await response.json();
 
       if (!response.ok) {
-        Alert.alert(data.mensagem, "Não enccontramos o usuario inserido" || 'Falha na autenticação');
+        Alert.alert(data.mensagem, "Não encontramos o usuario inserido" || 'Falha na autenticação');
       }
       setUser(data.user);
       Alert.alert('Login Realizado com sucesso!', `Bem-vindo, ${data.user.nome}!`);
