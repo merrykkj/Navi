@@ -5,7 +5,8 @@ const LoginContext = createContext(null);
 
 export const LoginProvider = ({ children }) => {
     const [user, setUser] = useState(null);
-
+    const [isLoading, setIsLoading] = useState(true);
+    
     useEffect(() => {
         const carregarUsuario = async () => {
             try {
@@ -14,9 +15,10 @@ export const LoginProvider = ({ children }) => {
                     setUser(JSON.parse(dadosSalvos));
                     console.log("Usuário carregado do AsyncStorage:", JSON.parse(dadosSalvos));
                 }
-
             } catch (error) {
                 console.log('erro ao carregar', error);
+            } finally {
+                setIsLoading(false);
             }
         };
         carregarUsuario();
@@ -34,10 +36,10 @@ export const LoginProvider = ({ children }) => {
         salvarUsuario();
     }, [user]);
 
-    
+
 
     return (
-        <LoginContext.Provider value={{ user, setUser }}>
+        <LoginContext.Provider value={{ user, setUser, isLoading }}>
             {children}
         </LoginContext.Provider>
     );

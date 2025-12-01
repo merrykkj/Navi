@@ -1,35 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Image, TouchableOpacity, ScrollView, Dimensions, Alert } from 'react-native';
-import { MaterialIcons, Feather, Ionicons } from '@expo/vector-icons'; 
-import { useLogin } from '../../../providers/loginProvider';
-import * as SQLite from 'expo-sqlite';
-import styles, { COLORS, FOOTER_CLEARANCE, windowWidth } from './ProfileStyle';
+import React, { useState, useEffect } from "react";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image, ScrollView } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useLogin } from "../../../providers/loginProvider";
 
-const openDb = () => SQLite.openDatabase("navi.db");
-
-const InfoRow = ({ label, value, field, updateFn, iconName, editando, keyboardType = 'default' }) => (
-  <View style={styles.infoRow}>
-    <Ionicons name={iconName} size={20} color={COLORS.primaryDark} style={styles.icon} />
-    <View style={styles.infoContent}>
-      <Text style={styles.label}>{label}</Text>
-      {editando ? (
-        <TextInput
-          style={styles.input}
-          value={value}
-          onChangeText={(t) => updateFn(field, t)}
-          keyboardType={keyboardType}
-          placeholder={`Insira o ${label.toLowerCase()}`}
-          autoCapitalize={keyboardType === 'email-address' ? 'none' : 'sentences'}
-          placeholderTextColor={COLORS.textLight} 
-        />
-      ) : (
-        <Text style={styles.value}>{value || 'Não informado'}</Text>
-      )}
-    </View>
-  </View>
-);
-
-export default function PerfilClienteEstacionamento() {
+export default function ProfileScreen() {
   const { user, setUser } = useLogin();
   const [cliente, setCliente] = useState(null);
   const [editando, setEditando] = useState(false);
@@ -52,31 +26,28 @@ export default function PerfilClienteEstacionamento() {
     }
   }, [user]);
 
-  const atualizarCampo = (campo, valor) => setCliente({ ...cliente, [campo]: valor });
-  const atualizarVeiculo = (campo, valor) => setCliente({ ...cliente, veiculo: { ...cliente.veiculo, [campo]: valor } });
-
-  const handleSalvar = async () => {
-    if (!user) return;
-
-    try {
-      const db = openDb();
-      db.transaction(tx => {
-        tx.executeSql(
-          `UPDATE usuario SET nome = ?, email = ?, telefone = ?, url_foto_perfil = ? WHERE id_usuario = ?`,
-          [cliente.nome, cliente.email, cliente.telefone, cliente.foto, user.id_usuario],
-          (_, result) => {
-            setUser({ ...user, nome: cliente.nome, email: cliente.email, telefone: cliente.telefone, url_foto_perfil: cliente.foto });
-            Alert.alert('Sucesso', 'Perfil atualizado!');
-            setEditando(false);
-          },
-          (_, error) => { console.log(error); Alert.alert('Erro', 'Não foi possível salvar.'); return false; }
-        );
-      });
-    } catch (err) {
-      console.log(err);
-      Alert.alert('Erro', 'Não foi possível salvar.');
+  function handleSave() {
+    if (!user) {
+      Alert.alert("Erro", "Usuário não identificado para salvar as alterações.");
+      return;
     }
-  };
+
+    // Cria um objeto com os dados atualizados
+    // Mantém o ID e outros dados antigos do usuário, sobrescrevendo com o formulário novo
+    const updatedUser = {
+      ...user,
+      nome: form.nome.trim(),
+      email: form.email.trim(),
+      telefone: form.telefone.trim(),
+      papel: form.papel.trim(),
+      url_foto_perfil: form.url_foto_perfil.trim(),
+    };
+
+    // Atualiza o estado global da aplicação
+    setUser(updatedUser);
+    
+    Alert.alert("Sucesso", "Perfil atualizado com sucesso! (Apenas localmente na sessão)");
+  }
 
   const handleLogout = () => {
     Alert.alert("Sair", "Deseja realmente sair?", [

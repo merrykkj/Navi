@@ -2,10 +2,7 @@ import { NaviService } from '../services/navi.service.js';
 import { askNaviAdminSchema, askNaviProprietarioSchema } from '../schemas/navi.schema.js';
 import { DocumentGenerateNavi } from '../models/DocumentGenerateNavi.js'; 
 import prisma from '../config/prisma.js'; 
-import { DocumentGenerateNavi } from '../models/DocumentGenerateNavi.js'; 
-import prisma from '../config/prisma.js'; 
 
-// Checagem de Autorização
 const verificarAutorizacao = async (estacionamentoId, userId) => {
     const isProprietario = await prisma.estacionamento.count({
         where: { id_estacionamento: estacionamentoId, id_proprietario: userId },
@@ -18,10 +15,6 @@ const verificarAutorizacao = async (estacionamentoId, userId) => {
     return isEmployee > 0;
 };
 
-// =======================================================
-// 1. ENDPOINTS DE PERGUNTA (JSON ONLY)
-// =======================================================
-
 export const naviAdminController = async (req, res) => {
     try {
         const validationResult = askNaviAdminSchema.safeParse(req.body);
@@ -30,11 +23,9 @@ export const naviAdminController = async (req, res) => {
         const { user_question, history } = validationResult.data;
         const dataContext = await NaviService.buscaDados.buscaGlobal();
         const naviResponse = await NaviService.ask(user_question, dataContext, history);
-        
-        // [CORREÇÃO] Sempre retorna JSON. Se for documento, o front chama o /download depois.
         res.status(200).json({ 
             ...naviResponse, 
-            dataContext: naviResponse.type === 'document' ? dataContext : null // Envia contexto apenas se necessário
+            dataContext: naviResponse.type === 'document' ? dataContext : null 
         });
     } catch (error) {
         console.error('ERRO ADMIN:', error);
@@ -58,7 +49,6 @@ export const naviProprietarioController = async (req, res) => {
         const dataContext = await NaviService.buscaDados.buscaEstacionamento(id_estacionamento);
         const naviResponse = await NaviService.ask(user_question, dataContext, history);
         
-        // [CORREÇÃO] Sempre retorna JSON.
         res.status(200).json({ 
             ...naviResponse, 
             dataContext: naviResponse.type === 'document' ? dataContext : null 
@@ -69,18 +59,9 @@ export const naviProprietarioController = async (req, res) => {
     }
 };
 
-// =======================================================
-// 2. ENDPOINT DE DOWNLOAD (GERA O BINÁRIO)
-// =======================================================
-
 export const naviDownloadController = async (req, res) => {
     try {
-        // O front envia: { documentType, documentTitle, dataContext, ... }
         const { documentType, documentTitle, dataContext, prefixo } = req.body;
-
-        // [CORREÇÃO] O 'dataContext' vindo do front agora contém TUDO (texto da IA + números)
-        // O NaviChat.js já manda o objeto correto. Vamos garantir que o gerador receba isso.
-
         if (!dataContext || !documentType) {
             return res.status(400).json({ error: "Dados insuficientes." });
         }
