@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import styles from "./ProfileStyle";
 import { useLogin } from "../../../providers/loginProvider";
 
 export default function ProfileScreen() {
