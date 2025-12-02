@@ -1,44 +1,98 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image, ScrollView } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, TextInput, TouchableOpacity, Alert, Image, ScrollView } from "react-native";
+import { Feather, MaterialIcons, Ionicons } from '@expo/vector-icons'; 
 import { useLogin } from "../../../providers/loginProvider";
+import styles, { COLORS } from './ProfileStyle'; 
+
+const InfoRow = ({ label, value, field, updateFn, iconName, editando, keyboardType = 'default' }) => {
+  return (
+    <View style={styles.infoRow}>
+      <Ionicons name={iconName} size={20} color={COLORS.primaryDark} style={styles.icon} />
+      <View style={styles.infoContent}>
+        <Text style={styles.label}>{label}</Text>
+        {editando ? (
+          <TextInput
+            style={styles.input}
+            value={value}
+            onChangeText={(text) => updateFn(field, text)}
+            keyboardType={keyboardType}
+          />
+        ) : (
+          <Text style={styles.value}>{value || 'Não informado'}</Text>
+        )}
+      </View>
+    </View>
+  );
+};
 
 export default function ProfileScreen() {
   const { user, setUser } = useLogin();
-  const [cliente, setCliente] = useState(null);
   const [editando, setEditando] = useState(false);
+  
+  // Estado único para controlar o formulário e a exibição
+  const [form, setForm] = useState({
+    nome: "",
+    email: "",
+    telefone: "",
+    plano: "",
+    url_foto_perfil: "",
+    anoEntrada: "",
+    veiculo: {
+      modelo: "",
+      placa: "",
+      cor: ""
+    }
+  });
 
+  // Carrega os dados do user do contexto para o estado local
   useEffect(() => {
     if (user) {
       setForm({
-        nome: user.nome || "",
+        nome: user.nome || "Usuário",
         email: user.email || "",
         telefone: user.telefone || "",
-        url_foto_perfil: user.url_foto_perfil || "",
+        plano: user.plano || "Básico",
+        url_foto_perfil: user.url_foto_perfil || "https://placehold.co/100", // Fallback de imagem
+        anoEntrada: user.anoEntrada || "2024",
+        veiculo: {
+          modelo: user.veiculo?.modelo || "",
+          placa: user.veiculo?.placa || "",
+          cor: user.veiculo?.cor || ""
+        }
       });
     }
   }, [user]);
 
-  function handleSave() {
+  // Função para atualizar campos simples (nome, telefone, etc)
+  const atualizarCampo = (campo, valor) => {
+    setForm(prev => ({ ...prev, [campo]: valor }));
+  };
+
+  // Função para atualizar campos aninhados (veiculo)
+  const atualizarVeiculo = (campo, valor) => {
+    setForm(prev => ({
+      ...prev,
+      veiculo: {
+        ...prev.veiculo,
+        [campo]: valor
+      }
+    }));
+  };
+
+  function handleSalvar() {
     if (!user) {
-      Alert.alert("Erro", "Usuário não identificado para salvar as alterações.");
+      Alert.alert("Erro", "Usuário não identificado.");
       return;
     }
 
-    // Cria um objeto com os dados atualizados
-    // Mantém o ID e outros dados antigos do usuário, sobrescrevendo com o formulário novo
     const updatedUser = {
       ...user,
-      nome: form.nome.trim(),
-      email: form.email.trim(),
-      telefone: form.telefone.trim(),
-      url_foto_perfil: form.url_foto_perfil.trim()
+      ...form // Sobrescreve os dados do user com os dados do form
     };
 
-    // Atualiza o estado global da aplicação
     setUser(updatedUser);
-    
-    Alert.alert("Sucesso", "Perfil atualizado com sucesso! (Apenas localmente na sessão)");
+    setEditando(false);
+    Alert.alert("Sucesso", "Perfil atualizado com sucesso!");
   }
 
   const handleLogout = () => {
@@ -48,9 +102,9 @@ export default function ProfileScreen() {
     ]);
   };
 
-  if (!cliente) {
+  if (!user) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+      <View style={[styles.container, { justifyContent: 'center' }]}>
         <Text>Nenhum usuário logado.</Text>
       </View>
     );
@@ -60,53 +114,116 @@ export default function ProfileScreen() {
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.card}>
 
+        {/* HEADER */}
         <View style={styles.header}>
           <View style={styles.avatarContainer}>
-            <Image source={{ uri: cliente.foto }} style={styles.avatar} />
+            <Image 
+              source={{ uri: form.url_foto_perfil }} 
+              style={styles.avatar} 
+            />
             <TouchableOpacity style={styles.photoEditButton}>
               <Feather name="camera" size={18} color={'white'} />
             </TouchableOpacity>
           </View>
+          
           <View style={styles.headerInfo}>
             {editando ? (
               <TextInput
                 style={styles.inputNameEdit}
-                value={cliente.nome}
+                value={form.nome}
                 onChangeText={(t) => atualizarCampo('nome', t)}
                 placeholderTextColor={COLORS.textLight}
               />
             ) : (
-              <Text style={styles.name}>{cliente.nome}</Text>
+              <Text style={styles.name}>{form.nome}</Text>
             )}
+            
             <View style={styles.roleRow}>
               <MaterialIcons name="access-time" size={14} color={COLORS.textMedium} />
-              <Text style={styles.role}>Cliente desde {cliente.anoEntrada || 'Não informado'}</Text>
+              <Text style={styles.role}>Cliente desde {form.anoEntrada}</Text>
             </View>
           </View>
         </View>
 
         <View style={styles.separator} />
 
+        {/* DADOS DE CONTATO */}
         <Text style={styles.sectionTitle}>Dados de Contato e Plano</Text>
         <View style={styles.box}>
-          <InfoRow label="Telefone" value={cliente.telefone} field="telefone" updateFn={atualizarCampo} iconName="call-outline" keyboardType="phone-pad" editando={editando} />
-          <InfoRow label="Email" value={cliente.email} field="email" updateFn={atualizarCampo} iconName="mail-outline" keyboardType="email-address" editando={editando} />
-          <InfoRow label="Plano" value={cliente.plano} field="plano" updateFn={atualizarCampo} iconName="receipt-outline" editando={editando} />
+          <InfoRow 
+            label="Telefone" 
+            value={form.telefone} 
+            field="telefone" 
+            updateFn={atualizarCampo} 
+            iconName="call-outline" 
+            keyboardType="phone-pad" 
+            editando={editando} 
+          />
+          <InfoRow 
+            label="Email" 
+            value={form.email} 
+            field="email" 
+            updateFn={atualizarCampo} 
+            iconName="mail-outline" 
+            keyboardType="email-address" 
+            editando={editando} 
+          />
+          <InfoRow 
+            label="Plano" 
+            value={form.plano} 
+            field="plano" 
+            updateFn={atualizarCampo} 
+            iconName="receipt-outline" 
+            editando={editando} 
+          />
         </View>
 
         <View style={styles.separator} />
 
+        {/* VEÍCULO */}
         <Text style={styles.sectionTitle}>Detalhes do Veículo</Text>
         <View style={styles.box}>
-          <InfoRow label="Modelo" value={cliente.veiculo.modelo} field="modelo" updateFn={atualizarVeiculo} iconName="car-outline" editando={editando} />
-          <InfoRow label="Placa" value={cliente.veiculo.placa} field="placa" updateFn={atualizarVeiculo} iconName="pricetag-outline" editando={editando} />
-          <InfoRow label="Cor" value={cliente.veiculo.cor} field="cor" updateFn={atualizarVeiculo} iconName="color-filter-outline" editando={editando} />
+          <InfoRow 
+            label="Modelo" 
+            value={form.veiculo.modelo} 
+            field="modelo" 
+            updateFn={atualizarVeiculo} 
+            iconName="car-outline" 
+            editando={editando} 
+          />
+          <InfoRow 
+            label="Placa" 
+            value={form.veiculo.placa} 
+            field="placa" 
+            updateFn={atualizarVeiculo} 
+            iconName="pricetag-outline" 
+            editando={editando} 
+          />
+          <InfoRow 
+            label="Cor" 
+            value={form.veiculo.cor} 
+            field="cor" 
+            updateFn={atualizarVeiculo} 
+            iconName="color-filter-outline" 
+            editando={editando} 
+          />
         </View>
 
+        {/* BOTÕES */}
         <View style={styles.actionButtonsContainer}>
-          <TouchableOpacity style={styles.buttonPrimary} onPress={() => (editando ? handleSalvar() : setEditando(true))}>
-            <Text style={styles.buttonPrimaryText}>{editando ? 'Salvar Alterações' : 'Editar Perfil'}</Text>
-            <Ionicons name={editando ? 'save-outline' : 'create-outline'} size={18} color={'white'} style={{ marginLeft: 8 }} />
+          <TouchableOpacity 
+            style={styles.buttonPrimary} 
+            onPress={() => (editando ? handleSalvar() : setEditando(true))}
+          >
+            <Text style={styles.buttonPrimaryText}>
+              {editando ? 'Salvar Alterações' : 'Editar Perfil'}
+            </Text>
+            <Ionicons 
+              name={editando ? 'save-outline' : 'create-outline'} 
+              size={18} 
+              color={'white'} 
+              style={{ marginLeft: 8 }} 
+            />
           </TouchableOpacity>
 
           {editando && (
