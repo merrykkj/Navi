@@ -60,8 +60,8 @@ export const LoginForm = ({ navigation }) => {
     >
       <View style={styles.container}>
         <View style={{ alignItems: "center" }}>
-          <Text style={{ fontWeight: "bold", fontSize: 25 }}>Bem-vindo de volta</Text>
-          <Text style={{ color: "#E5E7EB" }}>Faça login para continuar</Text>
+          <Text style={{ fontWeight: "bold", fontSize: 25 }}>Seja bem-vindo!</Text>
+          <Text style={{ color: "#000000" }}>Faça login para continuar</Text>
         </View>
 
         <TextInput
@@ -92,7 +92,7 @@ export const LoginForm = ({ navigation }) => {
         </TouchableOpacity>
 
         <View style={{ flexDirection: "row", paddingTop: 15, justifyContent: "center" }}>
-          <Text style={{ color: '#fff' }}>Não tem uma conta? </Text>
+          <Text style={{ color: '#000000' }}>Não tem uma conta? </Text>
           <TouchableOpacity onPress={() => navigation.navigate('Cadastre-se')}>
             <Text style={styles.links}>Cadastre-se</Text>
           </TouchableOpacity>
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   links: {
-    color: "#fff",
+    color: "#EAB308",
     fontWeight: "bold",
   },
   button: {

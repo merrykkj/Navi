@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, Alert, Image, ScrollView } from "react-native";
-import { Feather, MaterialIcons, Ionicons } from '@expo/vector-icons'; 
+import { Feather, MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useLogin } from "../../../providers/loginProvider";
-import styles, { COLORS } from './ProfileStyle'; 
+import styles, { COLORS } from './ProfileStyle';
+import API_URL from "../../../config/api";
 
 const InfoRow = ({ label, value, field, updateFn, iconName, editando, keyboardType = 'default' }) => {
   return (
@@ -28,7 +29,7 @@ const InfoRow = ({ label, value, field, updateFn, iconName, editando, keyboardTy
 export default function ProfileScreen() {
   const { user, setUser } = useLogin();
   const [editando, setEditando] = useState(false);
-  
+  const apiUrlUser = `${API_URL}`
   // Estado único para controlar o formulário e a exibição
   const [form, setForm] = useState({
     nome: "",
@@ -46,21 +47,27 @@ export default function ProfileScreen() {
 
   // Carrega os dados do user do contexto para o estado local
   useEffect(() => {
-    if (user) {
-      setForm({
-        nome: user.nome || "Usuário",
-        email: user.email || "",
-        telefone: user.telefone || "",
-        plano: user.plano || "Básico",
-        url_foto_perfil: user.url_foto_perfil || "https://placehold.co/100", // Fallback de imagem
-        anoEntrada: user.anoEntrada || "2024",
-        veiculo: {
-          modelo: user.veiculo?.modelo || "",
-          placa: user.veiculo?.placa || "",
-          cor: user.veiculo?.cor || ""
-        }
-      });
-    }
+    const fetchChamados = async () => {
+      setLoading(true);
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch(apiUrlUser, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (!response.ok) throw new Error("Erro ao carregar chamados");
+        const data = await response.json();
+        setChamados(data);
+      } catch (error) {
+        console.error("Erro ao buscar chamados:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user) fetchChamados();
   }, [user]);
 
   // Função para atualizar campos simples (nome, telefone, etc)
@@ -117,15 +124,15 @@ export default function ProfileScreen() {
         {/* HEADER */}
         <View style={styles.header}>
           <View style={styles.avatarContainer}>
-            <Image 
-              source={{ uri: form.url_foto_perfil }} 
-              style={styles.avatar} 
+            <Image
+              source={{ uri: form.url_foto_perfil }}
+              style={styles.avatar}
             />
             <TouchableOpacity style={styles.photoEditButton}>
               <Feather name="camera" size={18} color={'white'} />
             </TouchableOpacity>
           </View>
-          
+
           <View style={styles.headerInfo}>
             {editando ? (
               <TextInput
@@ -137,7 +144,7 @@ export default function ProfileScreen() {
             ) : (
               <Text style={styles.name}>{form.nome}</Text>
             )}
-            
+
             <View style={styles.roleRow}>
               <MaterialIcons name="access-time" size={14} color={COLORS.textMedium} />
               <Text style={styles.role}>Cliente desde {form.anoEntrada}</Text>
@@ -150,31 +157,31 @@ export default function ProfileScreen() {
         {/* DADOS DE CONTATO */}
         <Text style={styles.sectionTitle}>Dados de Contato e Plano</Text>
         <View style={styles.box}>
-          <InfoRow 
-            label="Telefone" 
-            value={form.telefone} 
-            field="telefone" 
-            updateFn={atualizarCampo} 
-            iconName="call-outline" 
-            keyboardType="phone-pad" 
-            editando={editando} 
+          <InfoRow
+            label="Telefone"
+            value={form.telefone}
+            field="telefone"
+            updateFn={atualizarCampo}
+            iconName="call-outline"
+            keyboardType="phone-pad"
+            editando={editando}
           />
-          <InfoRow 
-            label="Email" 
-            value={form.email} 
-            field="email" 
-            updateFn={atualizarCampo} 
-            iconName="mail-outline" 
-            keyboardType="email-address" 
-            editando={editando} 
+          <InfoRow
+            label="Email"
+            value={form.email}
+            field="email"
+            updateFn={atualizarCampo}
+            iconName="mail-outline"
+            keyboardType="email-address"
+            editando={editando}
           />
-          <InfoRow 
-            label="Plano" 
-            value={form.plano} 
-            field="plano" 
-            updateFn={atualizarCampo} 
-            iconName="receipt-outline" 
-            editando={editando} 
+          <InfoRow
+            label="Plano"
+            value={form.plano}
+            field="plano"
+            updateFn={atualizarCampo}
+            iconName="receipt-outline"
+            editando={editando}
           />
         </View>
 
@@ -183,46 +190,46 @@ export default function ProfileScreen() {
         {/* VEÍCULO */}
         <Text style={styles.sectionTitle}>Detalhes do Veículo</Text>
         <View style={styles.box}>
-          <InfoRow 
-            label="Modelo" 
-            value={form.veiculo.modelo} 
-            field="modelo" 
-            updateFn={atualizarVeiculo} 
-            iconName="car-outline" 
-            editando={editando} 
+          <InfoRow
+            label="Modelo"
+            value={form.veiculo.modelo}
+            field="modelo"
+            updateFn={atualizarVeiculo}
+            iconName="car-outline"
+            editando={editando}
           />
-          <InfoRow 
-            label="Placa" 
-            value={form.veiculo.placa} 
-            field="placa" 
-            updateFn={atualizarVeiculo} 
-            iconName="pricetag-outline" 
-            editando={editando} 
+          <InfoRow
+            label="Placa"
+            value={form.veiculo.placa}
+            field="placa"
+            updateFn={atualizarVeiculo}
+            iconName="pricetag-outline"
+            editando={editando}
           />
-          <InfoRow 
-            label="Cor" 
-            value={form.veiculo.cor} 
-            field="cor" 
-            updateFn={atualizarVeiculo} 
-            iconName="color-filter-outline" 
-            editando={editando} 
+          <InfoRow
+            label="Cor"
+            value={form.veiculo.cor}
+            field="cor"
+            updateFn={atualizarVeiculo}
+            iconName="color-filter-outline"
+            editando={editando}
           />
         </View>
 
         {/* BOTÕES */}
         <View style={styles.actionButtonsContainer}>
-          <TouchableOpacity 
-            style={styles.buttonPrimary} 
+          <TouchableOpacity
+            style={styles.buttonPrimary}
             onPress={() => (editando ? handleSalvar() : setEditando(true))}
           >
             <Text style={styles.buttonPrimaryText}>
               {editando ? 'Salvar Alterações' : 'Editar Perfil'}
             </Text>
-            <Ionicons 
-              name={editando ? 'save-outline' : 'create-outline'} 
-              size={18} 
-              color={'white'} 
-              style={{ marginLeft: 8 }} 
+            <Ionicons
+              name={editando ? 'save-outline' : 'create-outline'}
+              size={18}
+              color={'white'}
+              style={{ marginLeft: 8 }}
             />
           </TouchableOpacity>
 

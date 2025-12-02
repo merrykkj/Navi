@@ -36,7 +36,8 @@ const loginController = async (req, res) => {
                 nome: usuario.nome,
                 email: usuario.email,
                 telefone: usuario.telefone,
-                url_foto_perfil: usuario.url_foto_perfil
+                url_foto_perfil: usuario.url_foto_perfil,
+                anoEntrada: usuario.data_criacao.substring(0, 4),
             }
         });
     } catch (error) {
