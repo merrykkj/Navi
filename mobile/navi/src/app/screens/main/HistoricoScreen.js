@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import {
     View,
     Image,
-    SafeAreaView,
     ScrollView,
     TouchableOpacity,
     Text,
@@ -11,6 +10,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useLogin } from "../../../providers/loginProvider";
 import styles from "./HistoricoStyle";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const initialHistoryData = [
     {

@@ -1,7 +1,7 @@
 -- =================================================================================
 -- PASSO 1: CONFIGURAÇÃO DO BANCO DE DADOS
 -- =================================================================================
-
+DROP DATABASE navi; 
 CREATE DATABASE IF NOT EXISTS navi;
 USE navi;
 
@@ -18,14 +18,14 @@ CREATE TABLE IF NOT EXISTS `usuarios` (
     `senha` VARCHAR(255) NOT NULL,
     `telefone` VARCHAR(20) NULL,
     `url_foto_perfil` VARCHAR(255) NULL,
-    `papel` ENUM('ADMINISTRADOR', 'PROPRIETARIO', 'FUNCIONARIO') NOT NULL,
+    `papel` ENUM('ADMINISTRADOR', 'PROPRIETARIO', 'FUNCIONARIO', 'MOTORISTA') DEFAULT 'MOTORISTA' NOT NULL,
     `ativo` BOOLEAN NOT NULL DEFAULT TRUE,
     `reset_token` VARCHAR(255) NULL,
     `reset_token_expires` DATETIME NULL,
     `data_criacao` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `data_atualizacao` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
-
+select * from usuarios;
 -- Tabela para os estacionamentos. Cada um pertence a um PROPRIETARIO.
 CREATE TABLE IF NOT EXISTS `estabelecimentos` (
     `id` VARCHAR(36) NOT NULL PRIMARY KEY DEFAULT (UUID()),

@@ -86,7 +86,7 @@ async function deleteRecord(table, where, params = []) {
     const connection = await getConnection();
     try {
         const sql = `DELETE FROM ${table} WHERE ${where}`;
-        const [result] = await connection.execute(sql);
+        const [result] = await connection.execute(sql, params);
         return result.affectedRows;
     } catch (error) {
         console.error('Não foi possível excluir o registro', error)

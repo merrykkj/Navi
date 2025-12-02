@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLogin } from '../../providers/loginProvider.js';
-import { View, TextInput, Text, TouchableOpacity, StyleSheet, ImageBackground } from 'react-native';
+import { View, TextInput, Text, TouchableOpacity, StyleSheet, ImageBackground, Alert } from 'react-native';
 import API_URL from '../../config/api.js';
 import LoadingScreen from '../components/LoadingScreen.js';
 
@@ -12,7 +12,10 @@ export const LoginForm = ({ navigation }) => {
   const apiUrlLogin = `${API_URL}/auth/login`;
 
   const handleSubmit = async () => {
-    if (!email || !senha) return;
+    if (!email || !senha) {
+      Alert.alert('Erro!', 'Por favor, preencha todos os campos.');
+      return;
+    } 
 
     setLoading(true);
     const minLoadingTime = 6000;
@@ -32,12 +35,13 @@ export const LoginForm = ({ navigation }) => {
 
       if (!response.ok) {
         setTimeout(() => setLoading(false), remaining);
+        Alert.alert('Erro!', data.message);
         return;
       }
 
       setUser(data.user);
+      Alert.alert('Sucesso!', `${data.message}`);
       setTimeout(() => setLoading(false), remaining);
-
     } catch (error) {
       console.error(error);
       setLoading(false);

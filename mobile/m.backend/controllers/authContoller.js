@@ -6,18 +6,21 @@ const loginController = async (req, res) => {
     const { email, senha } = req.body;
     
     try {
+        if (!email || !senha) {
+            return res.status(400).json({ message: "Por favor insira o email e a senha!" });
+        }
         // Verificar se o usuário existe no banco de dados
         const usuario = await read('usuarios', `email = '${email}'`);
 
-        if (!usuario) {
-            return res.status(404).json({ mensagem: 'Usuário não encontrado' });
+        if (!usuario || usuario.length === 0) {
+            return res.status(404).json({ message: 'E-mail não encontrado! Tente novamente!' });
         }
         
         // Verificar se a senha está correta (comparar a senha enviada com o hash armazenado)
         const senhaCorreta = await compare(senha, usuario.senha);
         
         if (!senhaCorreta) {
-            return res.status(401).json({ mensagem: 'Senha incorreta' });
+            return res.status(401).json({ message: 'Senha incorreta! Tente novamente!' });
         }
         
         // Gerar o token JWT
@@ -26,7 +29,7 @@ const loginController = async (req, res) => {
 
         // Adicione o objeto user ao retorno
         res.json({
-            mensagem: 'Login realizado com sucesso',
+            message: 'Login realizado com sucesso!' + " Bem-vindo de volta, " + usuario.nome + "!",
             token,
             user: {
                 id: usuario.id,
