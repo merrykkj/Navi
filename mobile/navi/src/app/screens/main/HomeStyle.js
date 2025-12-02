@@ -62,6 +62,7 @@ export default StyleSheet.create({
   greetingTitle: {
     fontSize: 30,
     fontWeight: "900",
+    paddingTop: 10,
     color: TEXT_COLOR,
     letterSpacing: -0.7,
     textShadowColor: "rgba(0,0,0,0.08)",
