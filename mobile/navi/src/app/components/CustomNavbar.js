@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
   navbarContainer: {
     width: '100%',
     backgroundColor: PRIMARY_COLOR,
-    paddingTop: 35,
+    paddingTop: 15,
     paddingBottom: 10,
     shadowColor: '#000',
     shadowOpacity: 0.18,
