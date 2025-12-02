@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import authRoutes from './routes/authRotas.js';
+import cadastroRoutes from './routes/cadastroRoutes.js';
 import estacionamentoRoutes from './routes/EstacionamentoRoutes.js';
 // import vagaRoutes from './routes/VagaRoutes.js';
 // import veiculoRoutes from './routes/VeiculoRoutes.js';
@@ -20,6 +21,7 @@ app.get('/', (req, res) => {
 });
 app.use('/auth', authRoutes);
 app.use('/estacionamentos', estacionamentoRoutes);
+app.use('/cadastro', cadastroRoutes);
 // app.use('/vagas', vagaRoutes);
 // app.use('/veiculos', veiculoRoutes);
 // app.use('/reservas', reservaRoutes);

@@ -1,4 +1,4 @@
-import { getEstacionamentos, getEstacionamentosById, postEstacionamento, putEstacionamento, deleteEstacionamento } from "../models/Estacionamento.js";
+import { getEstacionamentos, getEstacionamentosById } from "../models/Estacionamento.js";
 
 export const getEstacionamentosController = async (req, res) => {
     try {
@@ -21,34 +21,5 @@ export const getEstacionamentosByIdController = async (req, res) => {
     } catch (error) {
         console.error('Erro ao obter o estacionamento pelo ID:', error)
         res.status(500).json({ message: 'Erro ao obter o estacionamento' })
-    }
-}
-
-export const postEstacionamentoController = async (req, res) => {
-    try {
-        postEstacionamento(req.body)
-    } catch (error) {
-        console.error('Erro ao criar estacionamento: ', error)
-        res.status(500).json({ message: 'Erro ao criar estacionamento' })
-        
-    }
-}
-
-export const putEstacionamentoController = async (req, res) => {
-    try {
-        putEstacionamento(req.body)
-    } catch (error) {
-        console.error('Erro ao atualizar estacionamento: ', error)
-        res.status(500).json({ message: 'Erro ao atualizar estacionamento' }) 
-    }
-}
-
-export const deleteEstacionamentoController = async (req, res) => {
-    try {
-        const estacionamentoId = req.params.id;
-        await deleteEstacionamento(estacionamentoId);
-    } catch (error) {
-        console.error('Erro ao excluir estacionamento: ', error)
-        res.status(500).json({ message: 'Erro ao excluir estacionamento' })
     }
 }
