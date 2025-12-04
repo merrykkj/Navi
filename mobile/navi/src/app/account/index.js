@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLogin } from '../../providers/loginProvider.js';
-import { View, TextInput, Text, TouchableOpacity, StyleSheet, ImageBackground, Alert } from 'react-native';
+import { View, TextInput, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import API_URL from '../../config/api.js';
 import LoadingScreen from '../components/LoadingScreen.js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -30,7 +31,6 @@ export const LoginForm = ({ navigation }) => {
       });
 
       const data = await response.json();
-
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(minLoadingTime - elapsed, 0);
 
@@ -50,20 +50,18 @@ export const LoginForm = ({ navigation }) => {
     }
   };
 
-  if (loading) {
-    return <LoadingScreen />;
-  }
+  if (loading) return <LoadingScreen />;
 
   return (
-    <ImageBackground
-      source={require('../../../assets/planodefundo.png')} // Substitua pelo caminho da sua imagem
+    <LinearGradient
+      colors={['#FBBF24', '#fad670', '#FBBF24']}
       style={styles.wrapper}
-      resizeMode="cover"
     >
+
       <View style={styles.container}>
         <View style={{ alignItems: "center" }}>
           <Text style={{ fontWeight: "bold", fontSize: 25 }}>Seja bem-vindo!</Text>
-          <Text style={{ color: "#000000" }}>Faça login para continuar</Text>
+          <Text style={{ color: "#000" }}>Faça login para continuar</Text>
         </View>
 
         <TextInput
@@ -94,13 +92,13 @@ export const LoginForm = ({ navigation }) => {
         </TouchableOpacity>
 
         <View style={{ flexDirection: "row", paddingTop: 15, justifyContent: "center" }}>
-          <Text style={{ color: '#000000' }}>Não tem uma conta? </Text>
+          <Text style={{ color: '#000' }}>Não tem uma conta? </Text>
           <TouchableOpacity onPress={() => navigation.navigate('Cadastre-se')}>
             <Text style={styles.links}>Cadastre-se</Text>
           </TouchableOpacity>
         </View>
       </View>
-    </ImageBackground>
+    </LinearGradient>
   );
 };
 
