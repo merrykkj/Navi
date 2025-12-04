@@ -1,4 +1,4 @@
-import { create, readAll, read, update, deleteRecord } from '../config/database.js';
+import { read, update } from '../config/database.js';
 
 export const getProfileById = async (id) => {
     try {

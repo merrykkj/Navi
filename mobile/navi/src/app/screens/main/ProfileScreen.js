@@ -33,6 +33,7 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
 
   const apiUrlUser = `${API_URL}/profile`;
+  const apiUrlVeiculo = `${API_URL}/veiculo`;
   // Estado único para controlar o formulário e a exibição
   const [form, setForm] = useState({
     nome: "",
@@ -47,6 +48,41 @@ export default function ProfileScreen() {
       cor: ""
     }
   });
+
+  useEffect(() => {
+    const fetchVeiculo = async () => {
+      try {
+        const token = await AsyncStorage.getItem("token");
+        const response = await fetch(apiUrlVeiculo, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.log("Resposta do servidor:", response.status, errorText);
+          throw new Error("Erro ao exibir veículo");
+        }
+
+        const data = await response.json();
+
+        setForm(prevForm => ({
+          ...prevForm,
+          veiculo: {
+            modelo: data.modelo || "",
+            placa: data.placa || "",
+            cor: data.cor || ""
+          }
+        }));
+      } catch (error) {
+        console.error("Erro ao exibir veículo:", error);
+      }
+    }
+    
+    fetchVeiculo();
+  }, [])
 
   // Carrega os dados do user do contexto para o estado local
   useEffect(() => {
@@ -65,19 +101,16 @@ export default function ProfileScreen() {
           throw new Error("Erro ao exibir perfil");
         }
         const data = await response.json();
-        setForm({
+        setForm(prev => ({
+          ...prev,
           nome: data.nome || "",
           email: data.email || "",
           telefone: data.telefone || "",
           plano: data.plano || "",
           url_foto_perfil: data.url_foto_perfil || "",
           anoEntrada: new Date(data.data_criacao).getFullYear(),
-          veiculo: {
-            modelo: "",
-            placa: "",
-            cor: ""
-          }
         })
+        )
 
       } catch (error) {
         console.error("Erro ao exibir perfil:", error);
