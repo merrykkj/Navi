@@ -4,6 +4,7 @@ import { Feather, MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useLogin } from "../../../providers/loginProvider";
 import styles, { COLORS } from './ProfileStyle';
 import API_URL from "../../../config/api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const InfoRow = ({ label, value, field, updateFn, iconName, editando, keyboardType = 'default' }) => {
   return (
@@ -29,7 +30,9 @@ const InfoRow = ({ label, value, field, updateFn, iconName, editando, keyboardTy
 export default function ProfileScreen() {
   const { user, setUser } = useLogin();
   const [editando, setEditando] = useState(false);
-  const apiUrlUser = `${API_URL}`
+  const [loading, setLoading] = useState(true);
+
+  const apiUrlUser = `${API_URL}/profile`;
   // Estado único para controlar o formulário e a exibição
   const [form, setForm] = useState({
     nome: "",
@@ -47,27 +50,43 @@ export default function ProfileScreen() {
 
   // Carrega os dados do user do contexto para o estado local
   useEffect(() => {
-    const fetchChamados = async () => {
-      setLoading(true);
+    const fetchProfile = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = await AsyncStorage.getItem("token");
         const response = await fetch(apiUrlUser, {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
         });
-        if (!response.ok) throw new Error("Erro ao carregar chamados");
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.log("Resposta do servidor:", response.status, errorText);
+          throw new Error("Erro ao exibir perfil");
+        }
         const data = await response.json();
-        setChamados(data);
+        setForm({
+          nome: data.nome || "",
+          email: data.email || "",
+          telefone: data.telefone || "",
+          plano: data.plano || "",
+          url_foto_perfil: data.url_foto_perfil || "",
+          anoEntrada: new Date(data.data_criacao).getFullYear(),
+          veiculo: {
+            modelo: "",
+            placa: "",
+            cor: ""
+          }
+        })
+
       } catch (error) {
-        console.error("Erro ao buscar chamados:", error);
+        console.error("Erro ao exibir perfil:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    if (user) fetchChamados();
+    if (user) fetchProfile();
   }, [user]);
 
   // Função para atualizar campos simples (nome, telefone, etc)
@@ -86,26 +105,56 @@ export default function ProfileScreen() {
     }));
   };
 
-  function handleSalvar() {
-    if (!user) {
-      Alert.alert("Erro", "Usuário não identificado.");
-      return;
+  async function handleSalvar() {
+    try {
+      const token = await AsyncStorage.getItem("token");
+      const response = await fetch(apiUrlUser, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          nome: form.nome,
+          email: form.email,
+          telefone: form.telefone,
+        })
+      });
+
+      if (!response.ok) throw new Error("Erro ao atualizar");
+
+      Alert.alert("Sucesso!", "Perfil atualizado.");
+
+      setUser(prev => ({ ...prev, ...form }));
+      setEditando(false);
+
+    } catch (error) {
+      Alert.alert("Erro", "Não foi possível atualizar o perfil");
     }
-
-    const updatedUser = {
-      ...user,
-      ...form // Sobrescreve os dados do user com os dados do form
-    };
-
-    setUser(updatedUser);
-    setEditando(false);
-    Alert.alert("Sucesso", "Perfil atualizado com sucesso!");
   }
+
+
+  // const updatedUser = {
+  //   ...user,
+  //   ...form // Sobrescreve os dados do user com os dados do form
+  // };
+
+  // setUser(updatedUser);
+  // setEditando(false);
+  // Alert.alert("Sucesso", "Perfil atualizado com sucesso!");
+
 
   const handleLogout = () => {
     Alert.alert("Sair", "Deseja realmente sair?", [
       { text: "Cancelar", style: "cancel" },
-      { text: "Sair", style: "destructive", onPress: () => setUser(null) }
+      {
+        text: "Sair",
+        style: "destructive",
+        onPress: async () => {
+          await AsyncStorage.removeItem('token')
+          setUser(null)
+        }
+      }
     ]);
   };
 

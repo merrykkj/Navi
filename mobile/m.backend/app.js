@@ -6,6 +6,8 @@ dotenv.config();
 import authRoutes from './routes/authRotas.js';
 import cadastroRoutes from './routes/cadastroRoutes.js';
 import estacionamentoRoutes from './routes/EstacionamentoRoutes.js';
+import authMiddleware from './middlewares/AuthMiddleware.js';
+import profileRoutes from './routes/profileRoutes.js';
 // import vagaRoutes from './routes/VagaRoutes.js';
 // import veiculoRoutes from './routes/VeiculoRoutes.js';
 // import reservaRoutes from './routes/ReservRoutes.js'; 
@@ -16,12 +18,14 @@ const port = 3002;
 app.use(express.json());
 
 // Rotas
-app.get('/', (req, res) => {
+app.get('/', authMiddleware, (req, res) => {
     res.send('API de Estacionamento funcionando!');
 });
+
 app.use('/auth', authRoutes);
 app.use('/estacionamentos', estacionamentoRoutes);
 app.use('/cadastro', cadastroRoutes);
+app.use('/profile', profileRoutes);
 // app.use('/vagas', vagaRoutes);
 // app.use('/veiculos', veiculoRoutes);
 // app.use('/reservas', reservaRoutes);

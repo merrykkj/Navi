@@ -3,6 +3,7 @@ import { useLogin } from '../../providers/loginProvider.js';
 import { View, TextInput, Text, TouchableOpacity, StyleSheet, ImageBackground, Alert } from 'react-native';
 import API_URL from '../../config/api.js';
 import LoadingScreen from '../components/LoadingScreen.js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const LoginForm = ({ navigation }) => {
   const { setUser } = useLogin();
@@ -15,7 +16,7 @@ export const LoginForm = ({ navigation }) => {
     if (!email || !senha) {
       Alert.alert('Erro!', 'Por favor, preencha todos os campos.');
       return;
-    } 
+    }
 
     setLoading(true);
     const minLoadingTime = 6000;
@@ -38,7 +39,8 @@ export const LoginForm = ({ navigation }) => {
         Alert.alert('Erro!', data.message);
         return;
       }
-
+      await AsyncStorage.setItem("token", data.token);
+      
       setUser(data.user);
       Alert.alert('Sucesso!', `${data.message}`);
       setTimeout(() => setLoading(false), remaining);
@@ -49,7 +51,7 @@ export const LoginForm = ({ navigation }) => {
   };
 
   if (loading) {
-    return <LoadingScreen />; 
+    return <LoadingScreen />;
   }
 
   return (
