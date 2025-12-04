@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, TextInput, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { sha256 } from 'js-sha256';
 import * as SQLite from 'expo-sqlite';
 
@@ -52,16 +53,17 @@ export const Register = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.wrapper}>
+    <LinearGradient
+      colors={['#FBBF24', '#fad670', '#FBBF24']}
+      style={styles.wrapper}
+    >
       <View style={styles.container}>
 
-        {/* Cabeçalho */}
         <View style={{ alignItems: "center", marginBottom: 10 }}>
           <Text style={styles.title}>Crie sua conta</Text>
           <Text style={styles.subtitle}>Preencha seus dados para continuar</Text>
         </View>
 
-        {/* Nome */}
         <TextInput
           style={styles.input}
           placeholder="Nome completo"
@@ -69,7 +71,6 @@ export const Register = ({ navigation }) => {
           onChangeText={(v) => handleChange('nome', v)}
         />
 
-        {/* Email */}
         <TextInput
           style={styles.input}
           placeholder="Email"
@@ -79,7 +80,6 @@ export const Register = ({ navigation }) => {
           onChangeText={(v) => handleChange('email', v)}
         />
 
-        {/* Senha */}
         <TextInput
           style={styles.input}
           placeholder="Senha"
@@ -88,7 +88,6 @@ export const Register = ({ navigation }) => {
           onChangeText={(v) => handleChange('senha', v)}
         />
 
-        {/* Telefone */}
         <TextInput
           style={styles.input}
           placeholder="Telefone (opcional)"
@@ -96,12 +95,10 @@ export const Register = ({ navigation }) => {
           onChangeText={(v) => handleChange('telefone', v)}
         />
 
-        {/* Botão */}
         <TouchableOpacity style={styles.button} onPress={handleSubmit}>
           <Text style={styles.buttonText}>Cadastrar</Text>
         </TouchableOpacity>
 
-        {/* Já tem conta */}
         <View style={{ flexDirection: "row", marginTop: 15, justifyContent: "center" }}>
           <Text>Já possui conta? </Text>
           <TouchableOpacity onPress={() => navigation.navigate('Login')}>
@@ -110,7 +107,7 @@ export const Register = ({ navigation }) => {
         </View>
 
       </View>
-    </View>
+    </LinearGradient>
   );
 };
 
@@ -119,12 +116,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fff",
   },
 
   container: {
     width: "90%",
     padding: 20,
+    backgroundColor: "rgba(255,255,255,0.85)",
+    borderRadius: 10,
   },
 
   title: {
@@ -144,6 +142,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 8,
     fontSize: 16,
+    backgroundColor: "#fff",
   },
 
   button: {
