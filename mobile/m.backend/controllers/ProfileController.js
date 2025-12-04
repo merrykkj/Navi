@@ -18,7 +18,7 @@ export const getProfileController = async (req, res) => {
 export const putProfileController = async (req, res) => {
     try {
         const profileId = req.usuarioId;
-        const { nome, email, telefone, veiculo } = req.body;
+        const { nome, email, telefone } = req.body;
 
         const profileData = {
             nome: nome,

@@ -80,7 +80,7 @@ export default function ProfileScreen() {
         console.error("Erro ao exibir veículo:", error);
       }
     }
-    
+
     fetchVeiculo();
   }, [])
 
@@ -165,6 +165,33 @@ export default function ProfileScreen() {
       Alert.alert("Erro", "Não foi possível atualizar o perfil");
     }
   }
+  async function handleSalvarVeiculo() {
+    try {
+      const token = await AsyncStorage.getItem("token");
+      const response = await fetch(apiUrlVeiculo, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          modelo: form.veiculo.modelo,
+          placa: form.veiculo.placa,
+          cor: form.veiculo.cor
+        })
+      });
+
+      if (!response.ok) throw new Error("Erro ao atualizar");
+
+      Alert.alert("Sucesso!", "Perfil atualizado.");
+
+      setUser(prev => ({ ...prev, ...form }));
+      setEditando(false);
+
+    } catch (error) {
+      Alert.alert("Erro", "Não foi possível atualizar o perfil");
+    }
+  }
 
 
   // const updatedUser = {
@@ -207,7 +234,11 @@ export default function ProfileScreen() {
         <View style={styles.header}>
           <View style={styles.avatarContainer}>
             <Image
-              source={{ uri: form.url_foto_perfil }}
+              source={
+                form.url_foto_perfil
+                  ? { uri: form.url_foto_perfil }
+                  : require('../../../../public/icon.png')
+              }
               style={styles.avatar}
             />
             <TouchableOpacity style={styles.photoEditButton}>
@@ -302,7 +333,14 @@ export default function ProfileScreen() {
         <View style={styles.actionButtonsContainer}>
           <TouchableOpacity
             style={styles.buttonPrimary}
-            onPress={() => (editando ? handleSalvar() : setEditando(true))}
+            onPress={() => {
+              if (editando) {
+                handleSalvar();
+                handleSalvarVeiculo();
+              } else {
+                setEditando(true);
+              }
+            }}
           >
             <Text style={styles.buttonPrimaryText}>
               {editando ? 'Salvar Alterações' : 'Editar Perfil'}

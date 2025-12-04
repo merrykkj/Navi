@@ -18,18 +18,18 @@ export const getVeiculosByUsuarioId = async (usuarioId) => {
     }
 }
 
-export const postEstacionamento = async (estacionamentoData) => {
+export const postEstacionamento = async (veiculoData) => {
     try {
-        return await create('veiculos', estacionamentoData)
+        return await create('veiculos', veiculoData)
     } catch (error) {
         console.error('Erro ao criar estacionamento: ', error)
         throw error
     }
 }
 
-export const putEstacionamento = async (id, estacionamentoData) => {
+export const putEstacionamento = async (id, veiculoData) => {
     try {
-        return await update('veiculos', estacionamentoData, `id = ?`, [id])
+        return await update('veiculos', veiculoData, `usuario_id = ?`, [id])
     } catch (error) {
         console.error('Erro ao atualizar estacionamento: ', error)
         throw error
