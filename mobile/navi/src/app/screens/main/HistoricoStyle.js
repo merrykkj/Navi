@@ -17,7 +17,8 @@ export default StyleSheet.create({
     mainTitle: {
         fontSize: 26,
         fontWeight: "900",
-        color: TEXT_COLOR
+        color: TEXT_COLOR,
+        textAlign: "center" // Alterado para centralizar o texto corretamente
     },
     scrollContentHistory: {
         paddingBottom: 40

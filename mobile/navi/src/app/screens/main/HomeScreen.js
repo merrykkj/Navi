@@ -13,6 +13,8 @@ import {
   LayoutAnimation,
   UIManager,
   Modal,
+  FlatList,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,6 +27,14 @@ if (
 ) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
+
+const getTodayDate = () => {
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, '0');
+  const mm = String(now.getMonth() + 1).padStart(2, '0'); 
+  const yyyy = now.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+};
 
 const parkingData = [
   {
@@ -112,11 +122,6 @@ const generateLeafletHtml = (initialParkings) => `
   <style>
     body { margin: 0; padding: 0; height: 100vh; background-color: #f8f8f8; }
     #map { height: 100%; width: 100%; }
-    .custom-popup .leaflet-popup-content-wrapper {
-      border-radius: 12px;
-      padding: 5px;
-      box-shadow: 0 3px 14px rgba(0,0,0,0.2);
-    }
     .leaflet-bar { display: none; }
   </style>
 </head>
@@ -160,18 +165,10 @@ const generateLeafletHtml = (initialParkings) => `
 
         data.forEach(p => {
             if(p.coords) {
+                // Cria o marcador SEM POPUP para que o clique vá direto para o app
                 const marker = L.marker(p.coords, { icon: parkingIcon }).addTo(map);
                 markers.push(marker);
                 
-                const popupContent = \`
-                  <div style="text-align: center; font-family: sans-serif;">
-                    <b style="color: #333; font-size: 14px;">\${p.name}</b><br/>
-                    <span style="color: #666; font-size: 12px;">\${p.price} • \${p.distance}</span>
-                  </div>
-                \`;
-                
-                marker.bindPopup(popupContent, { className: 'custom-popup' });
-
                 marker.on('click', () => {
                   if (currentRouteLine) {
                     map.removeLayer(currentRouteLine);
@@ -233,11 +230,16 @@ const generateLeafletHtml = (initialParkings) => `
         }
         map.flyTo([userLat, userLng], 15, { animate: true, duration: 1 });
     }
+    
+    window.recenterMap = () => {
+        map.flyTo([userLat, userLng], 15, { animate: true, duration: 1 });
+    }
 
   </script>
 </body>
 </html>
 `;
+
 
 const QuickAction = ({ icon, title, selected, onPress }) => (
   <TouchableOpacity
@@ -261,7 +263,7 @@ const QuickAction = ({ icon, title, selected, onPress }) => (
   </TouchableOpacity>
 );
 
-const ParkingCard = ({ parking, onPress }) => (
+const ParkingCard = ({ parking, onPress, onReserve }) => (
   <TouchableOpacity activeOpacity={0.9} onPress={onPress}>
     <View style={styles.card}>
       <Image source={{ uri: parking.imageUrl }} style={styles.cardImage} />
@@ -306,15 +308,15 @@ const ParkingCard = ({ parking, onPress }) => (
             disponíveis
           </Text>
 
-          <View style={styles.reserveButton}>
-            <Text style={styles.reserveButtonText}>Ir Agora</Text>
+          <TouchableOpacity style={styles.reserveButton} onPress={onReserve}>
+            <Text style={styles.reserveButtonText}>Reservar</Text>
             <Ionicons
-              name="arrow-forward"
+              name="calendar-outline"
               size={16}
               color="#fff"
               style={{ marginLeft: 6 }}
             />
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
     </View>
@@ -354,7 +356,7 @@ const RouteConfirmationModal = ({ visible, parking, onCancel, onConfirm }) => {
             </TouchableOpacity>
             <TouchableOpacity style={styles.modalButtonConfirm} onPress={onConfirm}>
               <Text style={styles.modalButtonConfirmText}>Iniciar Navegação</Text>
-              <Ionicons name="arrow-forward" size={18} color="#fff" style={{marginLeft: 5}}/>
+              <Ionicons name="arrow-forward" size={13} color="#fff" style={{marginLeft: 5}}/>
             </TouchableOpacity>
           </View>
         </View>
@@ -363,17 +365,358 @@ const RouteConfirmationModal = ({ visible, parking, onCancel, onConfirm }) => {
   );
 };
 
+const CalendarPickerModal = ({ visible, onClose, onSelect }) => {
+    const [currentDate, setCurrentDate] = useState(new Date());
+
+    const months = [
+        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+    ];
+
+    const weekDays = ["D", "S", "T", "Q", "Q", "S", "S"];
+
+    const getDaysInMonth = (year, month) => {
+        return new Date(year, month + 1, 0).getDate();
+    };
+
+    const getFirstDayOfMonth = (year, month) => {
+        return new Date(year, month, 1).getDay();
+    };
+
+    const changeMonth = (direction) => {
+        const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + direction, 1);
+        setCurrentDate(newDate);
+    };
+
+    const handleDayPress = (day) => {
+        const dd = String(day).padStart(2, '0');
+        const mm = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const yyyy = currentDate.getFullYear();
+        onSelect(`${dd}/${mm}/${yyyy}`);
+        onClose();
+    };
+
+    const renderCalendarDays = () => {
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+        
+        const daysInMonth = getDaysInMonth(year, month);
+        const firstDay = getFirstDayOfMonth(year, month);
+        
+        const slots = [];
+        
+        for (let i = 0; i < firstDay; i++) {
+            slots.push({ key: `empty-${i}`, day: null });
+        }
+        for (let i = 1; i <= daysInMonth; i++) {
+            slots.push({ key: `day-${i}`, day: i });
+        }
+
+        return (
+            <FlatList 
+                data={slots}
+                numColumns={7}
+                keyExtractor={item => item.key}
+                contentContainerStyle={{paddingVertical: 10}}
+                columnWrapperStyle={{justifyContent: 'flex-start'}}
+                renderItem={({item}) => {
+                    if (!item.day) {
+                        return <View style={styles.calendarDayItemEmpty} />;
+                    }
+                    return (
+                        <TouchableOpacity 
+                            style={styles.calendarDayItem}
+                            onPress={() => handleDayPress(item.day)}
+                        >
+                            <Text style={styles.calendarDayText}>{item.day}</Text>
+                        </TouchableOpacity>
+                    );
+                }}
+            />
+        );
+    };
+    
+    return (
+        <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
+            <View style={styles.modalOverlay}>
+                <View style={styles.modalContainer}>
+                    <View style={styles.calendarHeader}>
+                        <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.calendarArrow}>
+                            <Ionicons name="chevron-back" size={24} color="#333" />
+                        </TouchableOpacity>
+                        <Text style={styles.calendarTitle}>
+                            {months[currentDate.getMonth()]} {currentDate.getFullYear()}
+                        </Text>
+                        <TouchableOpacity onPress={() => changeMonth(1)} style={styles.calendarArrow}>
+                            <Ionicons name="chevron-forward" size={24} color="#333" />
+                        </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.weekDaysContainer}>
+                        {weekDays.map((d, index) => (
+                            <Text key={index} style={styles.weekDayText}>{d}</Text>
+                        ))}
+                    </View>
+
+                    <View style={{height: 300, width: '100%'}}>
+                        {renderCalendarDays()}
+                    </View>
+                    
+                    <TouchableOpacity style={[styles.modalButtonCancel, {marginTop: 10, width: '100%'}]} onPress={onClose}>
+                        <Text style={styles.modalButtonCancelText}>Cancelar</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </Modal>
+    );
+};
+
+const TimePickerModal = ({ visible, onClose, onSelect, title }) => {
+    const hours = Array.from({length: 24}, (_, i) => String(i).padStart(2, '0'));
+    const minutes = ['00', '15', '30', '45']; 
+    
+    const [selectedHour, setSelectedHour] = useState('14');
+    const [selectedMinute, setSelectedMinute] = useState('00');
+
+    return (
+        <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
+             <View style={styles.modalOverlay}>
+                <View style={styles.modalContainer}>
+                    <Text style={styles.modalTitle}>{title}</Text>
+                    <View style={{flexDirection: 'row', justifyContent: 'center', marginVertical: 30, height: 150}}>
+                        <ScrollView style={{width: 60}} showsVerticalScrollIndicator={false}>
+                            {hours.map(h => (
+                                <TouchableOpacity key={h} onPress={() => setSelectedHour(h)} style={{padding: 10, backgroundColor: selectedHour === h ? '#E0F2FE' : 'transparent', borderRadius: 8}}>
+                                    <Text style={{fontSize: 20, fontWeight: selectedHour === h ? 'bold' : 'normal', textAlign: 'center', color: selectedHour === h ? '#0EA5E9' : '#333'}}>{h}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                        <Text style={{fontSize: 24, alignSelf: 'center', marginHorizontal: 10, fontWeight: 'bold'}}>:</Text>
+                        <ScrollView style={{width: 60}} showsVerticalScrollIndicator={false}>
+                            {minutes.map(m => (
+                                <TouchableOpacity key={m} onPress={() => setSelectedMinute(m)} style={{padding: 10, backgroundColor: selectedMinute === m ? '#E0F2FE' : 'transparent', borderRadius: 8}}>
+                                    <Text style={{fontSize: 20, fontWeight: selectedMinute === m ? 'bold' : 'normal', textAlign: 'center', color: selectedMinute === m ? '#0EA5E9' : '#333'}}>{m}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    </View>
+                    <TouchableOpacity 
+                        style={[styles.modalButtonConfirm, {backgroundColor: '#0EA5E9', width: '100%'}]} 
+                        onPress={() => {
+                            onSelect(`${selectedHour}:${selectedMinute}`);
+                            onClose();
+                        }}
+                    >
+                        <Text style={[styles.modalButtonConfirmText, {color: '#fff'}]}>Confirmar Horário</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </Modal>
+    )
+}
+
+const ReservationModal = ({ visible, parking, onCancel, onConfirm }) => {
+    const [date, setDate] = useState(getTodayDate());
+    const [startTime, setStartTime] = useState("14:00");
+    const [endTime, setEndTime] = useState("16:00");
+
+    const [showCalendar, setShowCalendar] = useState(false);
+    const [showTimePicker, setShowTimePicker] = useState(false);
+    const [timePickerTarget, setTimePickerTarget] = useState('start'); 
+
+    const openTimePicker = (target) => {
+        setTimePickerTarget(target);
+        setShowTimePicker(true);
+    };
+
+    const handleTimeSelect = (time) => {
+        if (timePickerTarget === 'start') {
+            setStartTime(time);
+        } else {
+            setEndTime(time);
+        }
+    };
+
+    if (!parking) return null;
+    return (
+      <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onCancel}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <View style={[styles.modalIconContainer, { backgroundColor: '#E0F2FE' }]}>
+                  <Ionicons name="calendar" size={32} color="#0EA5E9" />
+              </View>
+              <Text style={styles.modalTitle}>Reservar Vaga</Text>
+              <Text style={styles.modalSubtitle}>
+                {parking.name}
+              </Text>
+            </View>
+            
+            <View style={{width: '100%', marginBottom: 20}}>
+                <Text style={styles.inputLabel}>Data da Reserva</Text>
+                
+                <TouchableOpacity style={styles.inputTouchable} onPress={() => setShowCalendar(true)}>
+                    <Text style={styles.inputText}>{date}</Text>
+                    <Ionicons name="calendar-outline" size={20} color="#6B7280" />
+                </TouchableOpacity>
+
+                <Text style={styles.inputLabel}>Horário</Text>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
+                    
+                    <View style={styles.timeBox}>
+                        <Text style={styles.timeLabel}>Entrada</Text>
+                        <TouchableOpacity style={styles.timeTouchable} onPress={() => openTimePicker('start')}>
+                            <Text style={styles.timeValue}>{startTime}</Text>
+                        </TouchableOpacity>
+                    </View>
+                    
+                    <Ionicons name="arrow-forward" size={20} color="#ccc" />
+                    
+                    <View style={styles.timeBox}>
+                        <Text style={styles.timeLabel}>Saída</Text>
+                        <TouchableOpacity style={styles.timeTouchable} onPress={() => openTimePicker('end')}>
+                            <Text style={styles.timeValue}>{endTime}</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </View>
+  
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalButtonCancel} onPress={onCancel}>
+                <Text style={styles.modalButtonCancelText}>Voltar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalButtonConfirm, {backgroundColor: '#0EA5E9'}]} 
+                onPress={() => onConfirm({date, startTime, endTime})}
+              >
+                <Text style={[styles.modalButtonConfirmText, {color: '#fff'}]}>Confirmar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        <CalendarPickerModal 
+            visible={showCalendar} 
+            onClose={() => setShowCalendar(false)}
+            onSelect={setDate}
+        />
+        <TimePickerModal 
+            visible={showTimePicker} 
+            onClose={() => setShowTimePicker(false)}
+            onSelect={handleTimeSelect}
+            title={timePickerTarget === 'start' ? "Horário de Entrada" : "Horário de Saída"}
+        />
+
+      </Modal>
+    );
+};
+
+const SuccessModal = ({ visible, onClose }) => {
+    useEffect(() => {
+        if (visible) {
+            const timer = setTimeout(onClose, 2500); 
+            return () => clearTimeout(timer);
+        }
+    }, [visible, onClose]);
+
+    return (
+        <Modal animationType="fade" transparent={true} visible={visible}>
+            <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
+                <TouchableWithoutFeedback>
+                    <View style={[styles.modalContainer, {paddingVertical: 40}]}>
+                        <View style={[styles.modalIconContainer, { backgroundColor: '#DCFCE7' }]}>
+                            <Ionicons name="checkmark" size={40} color="#22C55E" />
+                        </View>
+                        <Text style={styles.modalTitle}>Reserva Confirmada!</Text>
+                        <Text style={[styles.modalSubtitle, {marginBottom: 20}]}>Sua vaga está garantida.</Text>
+                    </View>
+                </TouchableWithoutFeedback>
+            </TouchableOpacity>
+        </Modal>
+    );
+};
+
+const ActiveReservationCard = ({ reservation, onPress }) => (
+    <TouchableOpacity style={styles.activeResCard} onPress={onPress} activeOpacity={0.9}>
+        <View style={styles.activeResHeader}>
+            <Text style={styles.activeResTitle}>Reserva Ativa</Text>
+            <View style={styles.activeResBadge}>
+                <Text style={styles.activeResBadgeText}>{reservation.date}</Text>
+            </View>
+        </View>
+        <Text style={styles.activeResName}>{reservation.parkingName}</Text>
+        <View style={styles.activeResTimeRow}>
+            <Ionicons name="time" size={16} color="#0EA5E9" />
+            <Text style={styles.activeResTimeText}>{reservation.startTime} - {reservation.endTime}</Text>
+        </View>
+    </TouchableOpacity>
+);
+
+const ActiveReservationDetailsModal = ({ visible, reservation, onClose }) => {
+    if (!reservation) return null;
+    return (
+        <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
+            <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
+                <TouchableWithoutFeedback>
+                    <View style={styles.modalContainer}>
+                        <View style={styles.modalHeader}>
+                            <View style={[styles.modalIconContainer, { backgroundColor: '#E0F2FE' }]}>
+                                <Ionicons name="ticket" size={32} color="#0EA5E9" />
+                            </View>
+                            <Text style={styles.modalTitle}>Detalhes da Reserva</Text>
+                            <Text style={styles.modalSubtitle}>Código: #A384F</Text>
+                        </View>
+
+                        <View style={{width: '100%', marginBottom: 24}}>
+                            <View style={styles.detailRow}>
+                                <Text style={styles.detailLabel}>Estacionamento</Text>
+                                <Text style={styles.detailValue}>{reservation.parkingName}</Text>
+                            </View>
+                            <View style={styles.detailRow}>
+                                <Text style={styles.detailLabel}>Data</Text>
+                                <Text style={styles.detailValue}>{reservation.date}</Text>
+                            </View>
+                            <View style={styles.detailRow}>
+                                <Text style={styles.detailLabel}>Horário</Text>
+                                <Text style={styles.detailValue}>{reservation.startTime} - {reservation.endTime}</Text>
+                            </View>
+                            <View style={[styles.detailRow, {borderBottomWidth: 0}]}>
+                                <Text style={styles.detailLabel}>Status</Text>
+                                <View style={{backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6}}>
+                                    <Text style={{color: '#22C55E', fontWeight: 'bold', fontSize: 12}}>CONFIRMADO</Text>
+                                </View>
+                            </View>
+                        </View>
+                    </View>
+                </TouchableWithoutFeedback>
+            </TouchableOpacity>
+        </Modal>
+    );
+};
+
 export default function HomeScreen() {
   const { user } = useLogin();
   const userName = user?.nome || "Usuário";
   const webViewRef = useRef(null);
+  const scrollViewRef = useRef(null);
 
   const [searchText, setSearchText] = useState("");
   const [selectedFilters, setSelectedFilters] = useState([]);
   const [viewMode, setViewMode] = useState('list'); 
   const [activeRouteParking, setActiveRouteParking] = useState(null);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [selectedParkingForModal, setSelectedParkingForModal] = useState(null);
+  const [activeReservation, setActiveReservation] = useState(null);
+
+  const [routeModalVisible, setRouteModalVisible] = useState(false);
+  const [reservationModalVisible, setReservationModalVisible] = useState(false);
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
+  const [activeDetailsVisible, setActiveDetailsVisible] = useState(false);
+  const [selectedParking, setSelectedParking] = useState(null);
+
+  useEffect(() => {
+    if ((viewMode === 'expanded' || viewMode === 'navigation') && scrollViewRef.current) {
+        scrollViewRef.current.scrollTo({ y: 0, animated: true });
+    }
+  }, [viewMode]);
 
   const filteredData = useMemo(() => {
     let data = [...parkingData];
@@ -446,6 +789,15 @@ export default function HomeScreen() {
     setViewMode(viewMode === 'expanded' ? 'list' : 'expanded');
   };
 
+  const handleRecenter = () => {
+      if (webViewRef.current) {
+          webViewRef.current.injectJavaScript(`
+            if(window.recenterMap) window.recenterMap();
+            true;
+          `);
+      }
+  };
+
   const exitNavigation = () => {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setViewMode('list');
@@ -458,19 +810,37 @@ export default function HomeScreen() {
   const handleWebViewMessage = (event) => {
     const data = JSON.parse(event.nativeEvent.data);
     if (data.type === 'markerClick') {
-        setSelectedParkingForModal(data.parking);
-        setModalVisible(true);
+        setSelectedParking(data.parking);
+        setRouteModalVisible(true);
     }
   };
 
   const handleCardPress = (parking) => {
-      setSelectedParkingForModal(parking);
-      setModalVisible(true);
+      setSelectedParking(parking);
+      setRouteModalVisible(true);
+  }
+
+  const handleReservePress = (parking) => {
+      setSelectedParking(parking);
+      setReservationModalVisible(true);
+  }
+
+  const confirmReservation = (details) => {
+      setReservationModalVisible(false);
+      setTimeout(() => {
+          setActiveReservation({
+              parkingName: selectedParking.name,
+              date: details.date,
+              startTime: details.startTime,
+              endTime: details.endTime
+          });
+          setSuccessModalVisible(true);
+      }, 500);
   }
 
   const confirmNavigation = () => {
-      setModalVisible(false);
-      const parking = selectedParkingForModal;
+      setRouteModalVisible(false);
+      const parking = selectedParking;
       if(!parking) return;
 
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -486,7 +856,6 @@ export default function HomeScreen() {
   };
 
   const isFullScreenMode = viewMode === 'expanded' || viewMode === 'navigation';
-
   const expandedHeight = Dimensions.get('window').height * 0.55; 
 
   return (
@@ -495,9 +864,14 @@ export default function HomeScreen() {
       <View style={styles.headerBackground} />
 
       <ScrollView 
+        ref={scrollViewRef}
         contentContainerStyle={[
             styles.scrollContent, 
-            isFullScreenMode && { minHeight: Dimensions.get('window').height } 
+            isFullScreenMode && { 
+                height: Dimensions.get('window').height,
+                justifyContent: 'center',
+                paddingTop: 0
+            } 
         ]} 
         showsVerticalScrollIndicator={false}
         scrollEnabled={!isFullScreenMode} 
@@ -505,41 +879,50 @@ export default function HomeScreen() {
         
         {!isFullScreenMode && (
             <View style={styles.topContentOverlay}>
-            <View style={styles.header}>
-                <View>
-                <Text style={styles.greetingTitle}>Olá, {userName}</Text>
-                <Text style={styles.greetingSubtitle}>Pronto para estacionar?</Text>
-                </View>
-            </View>
-
-            <View style={styles.searchSection}>
-                <View style={styles.searchBarContainer}>
-                <Ionicons name="search" size={20} color="#9CA3AF" />
-                <TextInput
-                    style={styles.searchBarInput}
-                    placeholder="Pesquisar por nome..."
-                    placeholderTextColor="#9CA3AF"
-                    value={searchText}
-                    onChangeText={setSearchText}
-                />
+                <View style={styles.header}>
+                    <View>
+                    <Text style={styles.greetingTitle}>Olá, {userName}</Text>
+                    <Text style={styles.greetingSubtitle}>Pronto para estacionar?</Text>
+                    </View>
                 </View>
 
-                <TouchableOpacity style={styles.locationButton}>
-                <Ionicons name="locate-outline" size={20} color="#fff" />
-                </TouchableOpacity>
-            </View>
+                {activeReservation && (
+                    <View style={{paddingHorizontal: PADDING, marginBottom: 20}}>
+                        <ActiveReservationCard 
+                            reservation={activeReservation} 
+                            onPress={() => setActiveDetailsVisible(true)}
+                        />
+                    </View>
+                )}
 
-            <View style={styles.quickActionsContainer}>
-                {quickActions.map((action, index) => (
-                <QuickAction
-                    key={index}
-                    icon={action.icon}
-                    title={action.title}
-                    selected={selectedFilters.includes(action.filter)}
-                    onPress={() => toggleFilter(action.filter)}
-                />
-                ))}
-            </View>
+                <View style={styles.searchSection}>
+                    <View style={styles.searchBarContainer}>
+                    <Ionicons name="search" size={20} color="#9CA3AF" />
+                    <TextInput
+                        style={styles.searchBarInput}
+                        placeholder="Pesquisar por nome ou tag..."
+                        placeholderTextColor="#9CA3AF"
+                        value={searchText}
+                        onChangeText={setSearchText}
+                    />
+                    </View>
+
+                    <TouchableOpacity style={styles.locationButton} onPress={handleRecenter}>
+                    <Ionicons name="locate-outline" size={20} color="#fff" />
+                    </TouchableOpacity>
+                </View>
+
+                <View style={styles.quickActionsContainer}>
+                    {quickActions.map((action, index) => (
+                    <QuickAction
+                        key={index}
+                        icon={action.icon}
+                        title={action.title}
+                        selected={selectedFilters.includes(action.filter)}
+                        onPress={() => toggleFilter(action.filter)}
+                    />
+                    ))}
+                </View>
             </View>
         )}
 
@@ -550,8 +933,8 @@ export default function HomeScreen() {
             <View style={styles.mapHeaderRow}>
                 {isFullScreenMode ? (
                     <TouchableOpacity onPress={exitNavigation} style={styles.backButton}>
-                         <Ionicons name="arrow-back" size={20} color={PRIMARY_COLOR} />
-                         <Text style={styles.backButtonText}>Voltar</Text>
+                         <Ionicons name="arrow-back" size={20} color="#333" />
+                         <Text style={[styles.backButtonText, {color: '#333'}]}>Voltar</Text>
                     </TouchableOpacity>
                 ) : (
                     <Text style={styles.sectionTitleNoPadding}>Mapa de Vagas</Text>
@@ -559,8 +942,8 @@ export default function HomeScreen() {
                 
                 {!isFullScreenMode && (
                     <TouchableOpacity onPress={toggleMapExpansion} style={styles.expandButton}>
-                        <Text style={styles.seeAllText}>Expandir</Text>
-                        <Ionicons name="expand" size={16} color={PRIMARY_COLOR} style={{marginLeft: 4}}/>
+                        <Text style={[styles.seeAllText, {color: '#B45309'}]}>Expandir</Text>
+                        <Ionicons name="expand" size={16} color="#B45309" style={{marginLeft: 4}}/>
                     </TouchableOpacity>
                 )}
             </View>
@@ -576,6 +959,7 @@ export default function HomeScreen() {
                     style={styles.mapWebView}
                     scrollEnabled={false}
                     nestedScrollEnabled={true}
+                    javaScriptEnabled={true}
                     onMessage={handleWebViewMessage}
                 />
                 
@@ -620,6 +1004,7 @@ export default function HomeScreen() {
                             key={parking.id} 
                             parking={parking} 
                             onPress={() => handleCardPress(parking)}
+                            onReserve={() => handleReservePress(parking)}
                         />
                     ))
                 )}
@@ -628,10 +1013,28 @@ export default function HomeScreen() {
         )}
 
         <RouteConfirmationModal 
-            visible={modalVisible}
-            parking={selectedParkingForModal}
-            onCancel={() => setModalVisible(false)}
+            visible={routeModalVisible}
+            parking={selectedParking}
+            onCancel={() => setRouteModalVisible(false)}
             onConfirm={confirmNavigation}
+        />
+
+        <ReservationModal
+            visible={reservationModalVisible}
+            parking={selectedParking}
+            onCancel={() => setReservationModalVisible(false)}
+            onConfirm={confirmReservation}
+        />
+
+        <SuccessModal 
+            visible={successModalVisible}
+            onClose={() => setSuccessModalVisible(false)}
+        />
+
+        <ActiveReservationDetailsModal
+            visible={activeDetailsVisible}
+            reservation={activeReservation}
+            onClose={() => setActiveDetailsVisible(false)}
         />
 
       </ScrollView>
@@ -639,7 +1042,7 @@ export default function HomeScreen() {
   );
 }
 
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
 const PADDING = width * 0.05;
 
 const PRIMARY_COLOR = "#F5B301";
@@ -651,7 +1054,6 @@ const LIGHT_BG = "#F8F8F8";
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#FAFAFA",
   },
   headerBackground: {
     position: 'absolute',
@@ -769,7 +1171,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   quickActionTextSelected: {
-    color: PRIMARY_COLOR,
+    color: '#B45309',
     fontWeight: "800",
   },
   mapSectionContainer: {
@@ -777,12 +1179,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: PADDING,
   },
   mapSectionFull: {
-      width: 390,
-      marginBottom: 0,
-      paddingLeft: 5,
-      marginTop: 90,
-      flex: 1, 
-  },
+    width: 390,
+    marginBottom: 0,
+    paddingLeft: 5,
+    marginTop: -280, 
+    flex: 1,
+    justifyContent: 'center', 
+},
   mapHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -819,7 +1222,7 @@ const styles = StyleSheet.create({
       marginLeft: 4,
   },
   seeAllText: {
-      color: PRIMARY_COLOR,
+      color: '#B45309',
       fontWeight: '700',
       fontSize: 13,
   },
@@ -1049,6 +1452,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 0.3,
   },
+  // ESTILOS DOS MODAIS
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -1062,10 +1466,7 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5
@@ -1149,5 +1550,163 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '800',
     fontSize: 14,
+  },
+  activeResCard: {
+      backgroundColor: '#fff',
+      borderRadius: 16,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: '#E0F2FE',
+      borderLeftWidth: 5,
+      borderLeftColor: '#0EA5E9',
+      shadowColor: "#000",
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+      elevation: 2,
+  },
+  activeResHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 8,
+  },
+  activeResTitle: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#0EA5E9',
+      textTransform: 'uppercase',
+  },
+  activeResBadge: {
+      backgroundColor: '#E0F2FE',
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 8,
+  },
+  activeResBadgeText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: '#0EA5E9',
+  },
+  activeResName: {
+      fontSize: 18,
+      fontWeight: '800',
+      color: TEXT_COLOR,
+      marginBottom: 4,
+  },
+  activeResTimeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+  },
+  activeResTimeText: {
+      marginLeft: 6,
+      fontSize: 14,
+      fontWeight: '600',
+      color: SUBTEXT,
+  },
+  timeBox: {
+      backgroundColor: '#F3F4F6',
+      borderRadius: 12,
+      padding: 12,
+      alignItems: 'center',
+      width: '40%',
+  },
+  timeLabel: {
+      fontSize: 12,
+      color: '#6B7280',
+      marginBottom: 4,
+  },
+  timeValue: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: '#111827',
+  },
+  inputLabel: {
+      fontSize: 14,
+      color: '#666',
+      marginBottom: 8,
+      fontWeight: '600',
+      marginTop: 10,
+  },
+  inputTouchable: {
+      backgroundColor: '#F3F4F6',
+      borderRadius: 12,
+      padding: 12,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+  },
+  inputText: {
+      fontSize: 16,
+      color: '#111827',
+      fontWeight: '500',
+  },
+  timeTouchable: {
+      width: '100%',
+      alignItems: 'center',
+  },
+  detailRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: '#F3F4F6',
+  },
+  detailLabel: {
+      fontSize: 14,
+      color: '#6B7280',
+      fontWeight: '500',
+  },
+  detailValue: {
+      fontSize: 14,
+      color: '#111827',
+      fontWeight: '700',
+  },
+  calendarHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      width: '100%',
+      marginBottom: 20,
+  },
+  calendarTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: '#333',
+  },
+  calendarArrow: {
+      padding: 10,
+  },
+  weekDaysContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      width: '100%',
+      marginBottom: 10,
+      paddingHorizontal: 10,
+  },
+  weekDayText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: '#999',
+      width: 36,
+      textAlign: 'center',
+  },
+  calendarDayItem: {
+      width: 36,
+      height: 36,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: '#F3F4F6',
+      borderRadius: 18,
+      margin: 4,
+  },
+  calendarDayItemEmpty: {
+      width: 36,
+      height: 36,
+      margin: 4,
+  },
+  calendarDayText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: '#333',
   },
 });
