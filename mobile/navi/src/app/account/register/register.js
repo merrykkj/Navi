@@ -1,6 +1,16 @@
 import React, { useState } from 'react';
-import { View, TextInput, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import {
+  View,
+  TextInput,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  ScrollView,
+  Image
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Feather } from '@expo/vector-icons';
 import { sha256 } from 'js-sha256';
 import * as SQLite from 'expo-sqlite';
 
@@ -11,6 +21,8 @@ export const Register = ({ navigation }) => {
     senha: '',
     telefone: ''
   });
+
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (name, value) => {
     setForm({ ...form, [name]: value });
@@ -42,8 +54,6 @@ export const Register = ({ navigation }) => {
       }
 
     } catch (error) {
-      console.error("ERRO AO CADASTRAR:", error);
-
       if (error.message.includes("UNIQUE constraint failed: usuario.email")) {
         Alert.alert("Erro", "Este email já está cadastrado.");
       } else {
@@ -54,114 +64,190 @@ export const Register = ({ navigation }) => {
 
   return (
     <LinearGradient
-      colors={['#FBBF24', '#fad670', '#FBBF24']}
-      style={styles.wrapper}
+      colors={['#FFC300', '#f5e8bc', '#FFC300']}
+      style={styles.background}
     >
-      <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <View style={styles.cardContainer}>
 
-        <View style={{ alignItems: "center", marginBottom: 10 }}>
-          <Text style={styles.title}>Crie sua conta</Text>
-          <Text style={styles.subtitle}>Preencha seus dados para continuar</Text>
-        </View>
+          <Image
+            source={require('../../../../assets/navi-cinza.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Nome completo"
-          value={form.nome}
-          onChangeText={(v) => handleChange('nome', v)}
-        />
+          <Text style={styles.title}>Criar conta</Text>
+          <Text style={styles.subtitle}>Insira seus dados abaixo</Text>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          value={form.email}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          onChangeText={(v) => handleChange('email', v)}
-        />
+          <View style={styles.inputGroup}>
+            <Feather name="user" size={20} color="#7F8C8D" />
+            <TextInput
+              style={styles.input}
+              placeholder="Nome completo"
+              placeholderTextColor="#95A5A6"
+              value={form.nome}
+              onChangeText={(v) => handleChange('nome', v)}
+            />
+          </View>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Senha"
-          secureTextEntry
-          value={form.senha}
-          onChangeText={(v) => handleChange('senha', v)}
-        />
+          <View style={styles.inputGroup}>
+            <Feather name="mail" size={20} color="#7F8C8D" />
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              placeholderTextColor="#95A5A6"
+              value={form.email}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              onChangeText={(v) => handleChange('email', v)}
+            />
+          </View>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Telefone (opcional)"
-          value={form.telefone}
-          onChangeText={(v) => handleChange('telefone', v)}
-        />
+          <View style={styles.inputGroup}>
+            <Feather name="lock" size={20} color="#7F8C8D" />
+            <TextInput
+              style={styles.input}
+              placeholder="Senha"
+              placeholderTextColor="#95A5A6"
+              secureTextEntry={!showPassword}
+              value={form.senha}
+              onChangeText={(v) => handleChange('senha', v)}
+            />
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+              <Feather
+                name={showPassword ? "eye-off" : "eye"}
+                size={20}
+                color="#7F8C8D"
+              />
+            </TouchableOpacity>
+          </View>
 
-        <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-          <Text style={styles.buttonText}>Cadastrar</Text>
-        </TouchableOpacity>
+          <View style={styles.inputGroup}>
+            <Feather name="phone" size={20} color="#7F8C8D" />
+            <TextInput
+              style={styles.input}
+              placeholder="Telefone (opcional)"
+              placeholderTextColor="#95A5A6"
+              value={form.telefone}
+              onChangeText={(v) => handleChange('telefone', v)}
+            />
+          </View>
 
-        <View style={{ flexDirection: "row", marginTop: 15, justifyContent: "center" }}>
-          <Text>Já possui conta? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-            <Text style={styles.links}>Entrar</Text>
+          <TouchableOpacity style={styles.button} onPress={handleSubmit}>
+            <Text style={styles.buttonText}>Cadastrar</Text>
+            <Feather name="arrow-right" size={20} color="#fff" style={{ marginLeft: 5 }} />
           </TouchableOpacity>
-        </View>
 
-      </View>
+          <View style={styles.footer}>
+            <Text style={{ color: "#7F8C8D" }}>Já possui conta?</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+              <Text style={styles.footerLink}> Entrar</Text>
+            </TouchableOpacity>
+          </View>
+
+        </View>
+      </ScrollView>
     </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
-  wrapper: {
+  background: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    paddingTop: 80,
   },
 
-  container: {
-    width: "90%",
-    padding: 20,
-    backgroundColor: "rgba(255,255,255,0.85)",
-    borderRadius: 10,
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+
+  cardContainer: {
+    width: "100%",
+    maxWidth: 380,
+    padding: 30,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 25,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 15,
+    elevation: 10,
+  },
+
+  logo: {
+    width: 100,
+    height: 90,
+    alignSelf: "center",
+    marginBottom: 10,
   },
 
   title: {
-    fontWeight: "bold",
-    fontSize: 25,
+    fontWeight: "800",
+    fontSize: 26,
+    color: "#2C3E50",
+    textAlign: "center",
   },
 
   subtitle: {
-    color: "#6e727a",
+    color: "#7F8C8D",
+    fontSize: 15,
+    textAlign: "center",
+    marginBottom: 25,
+  },
+
+  inputGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+    borderColor: "#E5E7EB",
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    backgroundColor: "#F9F9F9",
+    width: "100%",
   },
 
   input: {
-    height: 45,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    marginTop: 25,
-    paddingHorizontal: 10,
-    borderRadius: 8,
+    flex: 1,
+    height: 50,
     fontSize: 16,
-    backgroundColor: "#fff",
+    color: "#2C3E50",
+    marginLeft: 10,
   },
 
   button: {
-    backgroundColor: "#FFDE33",
+    flexDirection: "row",
+    backgroundColor: "#EAB308",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 20,
+    borderRadius: 15,
+    padding: 15,
+    shadowColor: "#EAB308",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 8,
+    width: "100%",
+    marginTop: 10,
   },
 
   buttonText: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: "#4E431B",
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
 
-  links: {
-    color: "#D08700",
-    fontWeight: "bold",
+  footer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 25,
+  },
+
+  footerLink: {
+    color: "#EAB308",
+    fontWeight: "700",
   },
 });
