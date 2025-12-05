@@ -28,7 +28,7 @@ const InfoRow = ({ label, value, field, updateFn, iconName, editando, keyboardTy
 };
 
 export default function ProfileScreen() {
-  const { user, setUser } = useLogin();
+  const { user, setUser, logout } = useLogin();
   const [editando, setEditando] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -44,6 +44,7 @@ export default function ProfileScreen() {
     anoEntrada: "",
     veiculo: {
       modelo: "",
+      marca: "",
       placa: "",
       cor: ""
     }
@@ -72,6 +73,7 @@ export default function ProfileScreen() {
           ...prevForm,
           veiculo: {
             modelo: data.modelo || "",
+            marca: data.marca || "",
             placa: data.placa || "",
             cor: data.cor || ""
           }
@@ -138,83 +140,68 @@ export default function ProfileScreen() {
     }));
   };
 
+  // Apenas faz o PUT do usuário
   async function handleSalvar() {
-    try {
-      const token = await AsyncStorage.getItem("token");
-      const response = await fetch(apiUrlUser, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          nome: form.nome,
-          email: form.email,
-          telefone: form.telefone,
-        })
-      });
+    const token = await AsyncStorage.getItem("token");
+    const response = await fetch(apiUrlUser, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        nome: form.nome,
+        email: form.email,
+        telefone: form.telefone,
+      })
+    });
 
-      if (!response.ok) throw new Error("Erro ao atualizar");
-
-      Alert.alert("Sucesso!", "Perfil atualizado.");
-
-      setUser(prev => ({ ...prev, ...form }));
-      setEditando(false);
-
-    } catch (error) {
-      Alert.alert("Erro", "Não foi possível atualizar o perfil");
-    }
+    if (!response.ok) throw new Error("Erro ao atualizar perfil");
   }
+
+  // Apenas faz o PUT do veículo
   async function handleSalvarVeiculo() {
-    try {
-      const token = await AsyncStorage.getItem("token");
-      const response = await fetch(apiUrlVeiculo, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          modelo: form.veiculo.modelo,
-          placa: form.veiculo.placa,
-          cor: form.veiculo.cor
-        })
-      });
+    const token = await AsyncStorage.getItem("token");
+    const response = await fetch(apiUrlVeiculo, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        modelo: form.veiculo.modelo,
+        marca: form.veiculo.marca,
+        placa: form.veiculo.placa,
+        cor: form.veiculo.cor
+      })
+    });
 
-      if (!response.ok) throw new Error("Erro ao atualizar");
-
-      Alert.alert("Sucesso!", "Perfil atualizado.");
-
-      setUser(prev => ({ ...prev, ...form }));
-      setEditando(false);
-
-    } catch (error) {
-      Alert.alert("Erro", "Não foi possível atualizar o perfil");
-    }
+    if (!response.ok) throw new Error("Erro ao atualizar veículo");
   }
 
-
-  // const updatedUser = {
-  //   ...user,
-  //   ...form // Sobrescreve os dados do user com os dados do form
-  // };
-
-  // setUser(updatedUser);
-  // setEditando(false);
-  // Alert.alert("Sucesso", "Perfil atualizado com sucesso!");
+  async function handleSalvarTudo() {
+    try {
+      setLoading(true);
+      await Promise.all([
+        handleSalvar(),
+        handleSalvarVeiculo()
+      ]);
+      Alert.alert("Sucesso!", "Perfil e veículo atualizados.");
+      setUser(prev => ({ ...prev, ...form }));
+      setEditando(false)
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Erro", "Houve um problema ao atualizar os dados.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
 
   const handleLogout = () => {
     Alert.alert("Sair", "Deseja realmente sair?", [
       { text: "Cancelar", style: "cancel" },
-      {
-        text: "Sair",
-        style: "destructive",
-        onPress: async () => {
-          await AsyncStorage.removeItem('token')
-          setUser(null)
-        }
-      }
+      { text: "Sair", style: "destructive", onPress: async () => logout() }
     ]);
   };
 
@@ -312,6 +299,14 @@ export default function ProfileScreen() {
             editando={editando}
           />
           <InfoRow
+            label="Marca"
+            value={form.veiculo.marca}
+            field="marca"
+            updateFn={atualizarVeiculo}
+            iconName="shield-checkmark-outline"
+            editando={editando}
+          />
+          <InfoRow
             label="Placa"
             value={form.veiculo.placa}
             field="placa"
@@ -335,13 +330,13 @@ export default function ProfileScreen() {
             style={styles.buttonPrimary}
             onPress={() => {
               if (editando) {
-                handleSalvar();
-                handleSalvarVeiculo();
+                handleSalvarTudo(); 
               } else {
                 setEditando(true);
               }
             }}
           >
+            
             <Text style={styles.buttonPrimaryText}>
               {editando ? 'Salvar Alterações' : 'Editar Perfil'}
             </Text>

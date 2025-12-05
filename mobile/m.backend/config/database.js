@@ -4,13 +4,15 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const pool = mysql.createPool({
-    host: process.env.DATABASE_URL || 'localhost',
-    user: process.env.DATABASE_USER || 'root',
-    password: '',
-    database: process.env.DATABASE_NAME || 'navi',
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USERNAME || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_DATABASE || 'navi',
+    port: process.env.DB_PORT || 3306,
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0
+    queueLimit: 0,
+
 });
 
 async function getConnection() {

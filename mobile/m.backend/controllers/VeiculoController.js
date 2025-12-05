@@ -20,17 +20,15 @@ export const getVeiculoByIdController = async (req, res) => {
 export const putVeiculoController = async (req, res) => {
     try {
         const usuario_id = req.usuarioId;
-        const { modelo, placa, cor } = req.body;
+        const { modelo, placa, cor, marca } = req.body;
 
         const veiculoData = {
             modelo: modelo,
+            marca: marca,
             placa: placa,
             cor: cor
         }
-        
-        if(!modelo || !placa || !cor){
-            return res.status(400).json({message: 'Todos os campos são obrigatórios'});
-        }
+    
 
         const veiculoAtualizado = await putEstacionamento(usuario_id, veiculoData);
         if (veiculoAtualizado) {
