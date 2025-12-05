@@ -37,7 +37,7 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#F8BEA',
+        backgroundColor: '#b5b5b5',
     },
     gif: {
         width: 150,      
@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
     loadingText: {
         fontSize: 20,
         fontWeight: '600',
-        color: '#4E431B',
+        color: '#fff',
     },
 });
 
